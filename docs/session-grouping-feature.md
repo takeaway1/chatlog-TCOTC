@@ -32,25 +32,29 @@ type Session struct {
 **检测逻辑** (`internal/model/session_v4.go`):
 
 ```go
-// 置顶判断：sort_timestamp > last_timestamp
-// WeChat 4.x 在置顶时会更新 sort_timestamp 为置顶操作的时间（当前时间）
-// 这个时间通常会大于最后一条消息的时间 last_timestamp
-isTopPinned := s.SortTimestamp > int64(s.LastTimestamp)
+// 置顶判断：使用 status 字段
+// status=0: 普通会话
+// status=2: 置顶会话
+// status=4: 置顶会话（可能带免打扰状态）
+isTopPinned := s.Status == 2 || s.Status == 4
 
 // 最小化判断：is_hidden 字段
 isHidden := s.IsHidden == 1
 ```
 
 **数据库字段**:
-- `sort_timestamp` - 排序时间戳（置顶时更新为置顶操作的当前时间）
+- `status` - 会话状态（0=普通，2=置顶，4=置顶+其他状态）
 - `is_hidden` - 最小化标记（1=已最小化）
+- `sort_timestamp` - 排序时间戳（用于同类会话内部排序）
 
-**实际案例**:
+**排序规则**:
+```sql
+ORDER BY
+  CASE WHEN status IN (2, 4) THEN 0 ELSE 1 END,  -- 置顶优先
+  sort_timestamp DESC                             -- 时间倒序
 ```
-置顶前: last_timestamp=1762636965, sort_timestamp=1762636965 (相等)
-置顶后: last_timestamp=1762636965, sort_timestamp=1762637167 (sort > last)
-         差值约 202 秒（3分钟），即置顶操作发生在最后消息之后 3 分钟
-```
+
+这确保所有置顶会话始终排在最前面，不受最后消息时间影响。
 
 ### WeChat 3.x 支持
 
@@ -186,26 +190,45 @@ export default function SessionsPage() {
 
 ### 置顶判断逻辑
 
-WeChat 4.x 通过更新 `sort_timestamp` 为置顶操作时的当前时间来实现置顶：
+WeChat 4.x 使用 `status` 字段标识会话状态：
 
 ```go
-// 简单比较即可判断
-isTopPinned := sort_timestamp > last_timestamp
+// 使用 status 字段判断
+isTopPinned := status == 2 || status == 4
 ```
 
-- 未置顶会话：`sort_timestamp == last_timestamp`（排序时间等于最后消息时间）
-- 置顶会话：`sort_timestamp > last_timestamp`（排序时间大于最后消息时间）
+**状态值说明**：
+- `status=0`: 普通会话（664个）
+- `status=2`: 置顶会话（15个）
+- `status=4`: 置顶+其他状态，如免打扰（3个）
 
-这种设计的优点：
-1. **简单高效**：无需设置特殊值，只需简单比较
-2. **保留置顶时间**：可以通过 `sort_timestamp - last_timestamp` 得知置顶发生的时间
-3. **自然排序**：置顶会话按置顶时间倒序排列
+**关键发现**：
+- ❌ `sort_timestamp` **不是**置顶标识（只用于排序）
+- ✅ `status` 字段才是真正的置顶标识
+- 置顶会话的 `sort_timestamp` 可能比普通会话更旧
+
+**为什么需要特殊排序**：
+由于置顶会话的 `sort_timestamp` 可能很旧（例如最后消息是几天前），如果只按 `sort_timestamp DESC` 排序，这些置顶会话会被排到很后面。因此需要先按 `status` 分组，再按时间排序：
+
+```sql
+ORDER BY
+  CASE WHEN status IN (2, 4) THEN 0 ELSE 1 END,  -- 置顶会话优先级0，普通会话优先级1
+  sort_timestamp DESC                             -- 同优先级内按时间倒序
+```
 
 ### 排序规则
 
-1. 后端按 `sort_timestamp` DESC 排序（置顶会话自然在前）
-2. 前端按类型分组（置顶 > 普通 > 最小化）
-3. 每组内部保持原有排序
+**后端排序**（SQL）：
+1. 第一优先级：`status IN (2,4)` 的置顶会话排在前面
+2. 第二优先级：同类会话按 `sort_timestamp DESC` 排序
+3. 结果：所有置顶会话在前，按时间倒序；普通会话在后，也按时间倒序
+
+**前端分组**（React）：
+1. 将所有会话按 `isTopPinned` 和 `isHidden` 分为三组
+2. 置顶组：`isTopPinned === true`
+3. 普通组：`isTopPinned === false && isHidden === false`
+4. 最小化组：`isHidden === true`
+5. 每组内部保持后端返回的顺序
 
 ### 性能优化
 
