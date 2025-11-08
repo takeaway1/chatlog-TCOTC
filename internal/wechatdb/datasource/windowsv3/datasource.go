@@ -592,15 +592,15 @@ func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset
 
 	if key != "" {
 		// 按照关键字查询
-		query = `SELECT strUsrName, nOrder, strNickName, strContent, nTime 
-                FROM Session 
+		query = `SELECT strUsrName, nOrder, strNickName, strContent, nTime, parentRef
+                FROM Session
                 WHERE strUsrName = ? OR strNickName = ?
                 ORDER BY nOrder DESC`
 		args = []interface{}{key, key}
 	} else {
 		// 查询所有会话
-		query = `SELECT strUsrName, nOrder, strNickName, strContent, nTime 
-                FROM Session 
+		query = `SELECT strUsrName, nOrder, strNickName, strContent, nTime, parentRef
+                FROM Session
                 ORDER BY nOrder DESC`
 	}
 
@@ -632,6 +632,7 @@ func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset
 			&sessionV3.StrNickName,
 			&sessionV3.StrContent,
 			&sessionV3.NTime,
+			&sessionV3.ParentRef,
 		)
 
 		if err != nil {
