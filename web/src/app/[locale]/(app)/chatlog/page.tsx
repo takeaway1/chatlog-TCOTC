@@ -7,9 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function ChatlogPage() {
-  return (
-    <div className="min-h-screen bg-background">
-      <ChatlogDashboard />
-    </div>
-  );
+  return <ChatlogDashboard />;
 }
