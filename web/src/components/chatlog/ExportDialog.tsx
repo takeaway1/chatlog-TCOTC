@@ -33,7 +33,7 @@ export function ExportDialog({ open, onOpenChange, messages }: ExportDialogProps
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('txt');
   const [previewContent, setPreviewContent] = useState<string>('');
 
-  const formats: ExportFormat[] = ['txt', 'markdown', 'html', 'json', 'csv'];
+  const formats: ExportFormat[] = ['txt', 'markdown', 'interview', 'html', 'json', 'csv'];
 
   useEffect(() => {
     try {

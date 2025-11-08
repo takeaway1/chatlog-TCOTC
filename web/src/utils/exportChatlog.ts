@@ -1,7 +1,7 @@
 import type { Message } from '@/libs/ChatlogAPI';
 import { format } from 'date-fns';
 
-export type ExportFormat = 'json' | 'csv' | 'txt' | 'html' | 'markdown';
+export type ExportFormat = 'json' | 'csv' | 'txt' | 'html' | 'markdown' | 'interview';
 
 export interface ExportOptions {
   format: ExportFormat;
@@ -149,6 +149,26 @@ ${content}
   return header + messageList;
 }
 
+export function exportToInterview(messages: Message[]): string {
+  const parts: string[] = [];
+  let lastSender = '';
+
+  for (const msg of messages) {
+    const sender = msg.isSender ? '我' : (msg.senderName || msg.sender || msg.talker);
+    const content = msg.displayContent || msg.content || '[无内容]';
+
+    if (sender !== lastSender) {
+      parts.push(`**${sender}**: ${content}`);
+      lastSender = sender;
+    }
+    else {
+      parts.push(content);
+    }
+  }
+
+  return parts.join('\n\n');
+}
+
 export function generateExportContent(format: ExportFormat, messages: Message[]): string {
   switch (format) {
     case 'json':
@@ -161,6 +181,8 @@ export function generateExportContent(format: ExportFormat, messages: Message[])
       return exportToHTML(messages);
     case 'markdown':
       return exportToMarkdown(messages);
+    case 'interview':
+      return exportToInterview(messages);
     default:
       throw new Error(`Unsupported format: ${format}`);
   }
@@ -169,7 +191,8 @@ export function generateExportContent(format: ExportFormat, messages: Message[])
 export function downloadExport({ format, messages, filename }: ExportOptions): void {
   const content = generateExportContent(format, messages);
   const timestamp = format(new Date(), 'yyyyMMdd_HHmmss');
-  const defaultFilename = `chatlog_${timestamp}.${format === 'markdown' ? 'md' : format}`;
+  const extension = (format === 'markdown' || format === 'interview') ? 'md' : format;
+  const defaultFilename = `chatlog_${timestamp}.${extension}`;
   const finalFilename = filename || defaultFilename;
 
   const blob = new Blob([content], { type: getContentType(format) });
@@ -194,6 +217,7 @@ function getContentType(format: ExportFormat): string {
     case 'html':
       return 'text/html';
     case 'markdown':
+    case 'interview':
       return 'text/markdown';
     default:
       return 'text/plain';
@@ -207,6 +231,7 @@ export function getFormatLabel(format: ExportFormat): string {
     txt: '纯文本',
     html: 'HTML (网页)',
     markdown: 'Markdown',
+    interview: '访谈风',
   };
   return labels[format];
 }
@@ -218,6 +243,7 @@ export function getFormatDescription(format: ExportFormat): string {
     txt: '简单文本格式，易于阅读',
     html: '网页格式，可在浏览器中查看',
     markdown: 'Markdown 格式，适合文档编辑',
+    interview: '访谈对话风格，连续发言自动合并',
   };
   return descriptions[format];
 }
