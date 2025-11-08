@@ -74,7 +74,7 @@ export function ExportDialog({ open, onOpenChange, messages }: ExportDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[85vh]">
+      <DialogContent className="max-w-6xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -85,40 +85,42 @@ export function ExportDialog({ open, onOpenChange, messages }: ExportDialogProps
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-[300px,1fr] gap-6 py-4">
-          <div className="space-y-4">
-            <Label className="text-base font-semibold">选择格式</Label>
-            <RadioGroup value={selectedFormat} onValueChange={(v) => setSelectedFormat(v as ExportFormat)}>
-              <div className="space-y-3">
-                {formats.map(format => (
-                  <div key={format} className="flex items-start space-x-3">
-                    <RadioGroupItem value={format} id={format} className="mt-1" />
-                    <Label
-                      htmlFor={format}
-                      className="flex-1 cursor-pointer hover:bg-accent rounded p-2 -m-2"
-                    >
-                      <div className="font-medium">{getFormatLabel(format)}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {getFormatDescription(format)}
-                      </div>
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </RadioGroup>
+        <div className="grid grid-cols-[300px,1fr] gap-6 py-4 overflow-hidden flex-1 min-h-0">
+          <div className="flex flex-col min-h-0">
+            <Label className="text-base font-semibold mb-4">选择格式</Label>
+            <ScrollArea className="flex-1">
+              <RadioGroup value={selectedFormat} onValueChange={(v) => setSelectedFormat(v as ExportFormat)}>
+                <div className="space-y-3 pr-4">
+                  {formats.map(format => (
+                    <div key={format} className="flex items-start space-x-3">
+                      <RadioGroupItem value={format} id={format} className="mt-1" />
+                      <Label
+                        htmlFor={format}
+                        className="flex-1 cursor-pointer hover:bg-accent rounded p-2 -m-2"
+                      >
+                        <div className="font-medium">{getFormatLabel(format)}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {getFormatDescription(format)}
+                        </div>
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </RadioGroup>
+            </ScrollArea>
           </div>
 
-          <div className="space-y-4">
-            <Label className="text-base font-semibold">
+          <div className="flex flex-col min-h-0">
+            <Label className="text-base font-semibold mb-4">
               预览 - {getFormatLabel(selectedFormat)}
             </Label>
-            <ScrollArea className="h-[calc(85vh-240px)] w-full rounded-md border">
+            <ScrollArea className="flex-1 w-full rounded-md border">
               <div className="p-4">
                 {previewContent ? (
                   selectedFormat === 'html' ? (
                     <iframe
                       srcDoc={previewContent}
-                      className="w-full h-[calc(85vh-280px)] border-0"
+                      className="w-full min-h-[500px] border-0"
                       title="HTML Preview"
                     />
                   ) : (
