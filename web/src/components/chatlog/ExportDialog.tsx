@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Download, FileText } from 'lucide-react';
+import { Download, FileText, Copy, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,7 @@ export function ExportDialog({ open, onOpenChange, messages }: ExportDialogProps
   const [previewContent, setPreviewContent] = useState<string>('');
   const [filterSystemMessages, setFilterSystemMessages] = useState(false);
   const [senderRenames, setSenderRenames] = useState<SenderRename>({});
+  const [copied, setCopied] = useState(false);
 
   const formats: ExportFormat[] = ['interview', 'txt', 'markdown', 'html', 'json', 'csv'];
 
@@ -143,6 +144,17 @@ export function ExportDialog({ open, onOpenChange, messages }: ExportDialogProps
       ...prev,
       [original]: newName,
     }));
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(previewContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+    catch (error) {
+      console.error('Copy error:', error);
+    }
   };
 
   const getPreviewLanguage = () => {
@@ -280,6 +292,19 @@ export function ExportDialog({ open, onOpenChange, messages }: ExportDialogProps
         <DialogFooter className="flex gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             取消
+          </Button>
+          <Button variant="secondary" onClick={handleCopy} disabled={!previewContent}>
+            {copied ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                已复制
+              </>
+            ) : (
+              <>
+                <Copy className="mr-2 h-4 w-4" />
+                复制到剪切板
+              </>
+            )}
           </Button>
           <Button onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
