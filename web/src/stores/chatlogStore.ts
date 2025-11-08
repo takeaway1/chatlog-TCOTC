@@ -1,8 +1,27 @@
 import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
-import type { GetChatlogParams } from '@/libs/ChatlogAPI';
+import type { GetChatlogParams, Message } from '@/libs/ChatlogAPI';
 
-// Tab state with localStorage persistence
+// Navigation section state (WeChat-style)
+export const activeSectionAtom = atomWithStorage<'chats' | 'contacts' | 'groups'>(
+  'chatlog_active_section',
+  'chats',
+);
+
+// Selected conversation state
+export type SelectedConversation = {
+  type: 'session' | 'contact' | 'chatroom';
+  id: string; // userName for sessions/contacts, chatroom name for groups
+  displayName: string;
+  avatar?: string;
+} | null;
+
+export const selectedConversationAtom = atom<SelectedConversation>(null);
+
+// Messages for selected conversation
+export const conversationMessagesAtom = atom<Message[]>([]);
+
+// Legacy tab state (kept for backward compatibility)
 export const activeTabAtom = atomWithStorage<'session' | 'chatroom' | 'contact' | 'chatlog'>(
   'chatlog_active_tab',
   'session',

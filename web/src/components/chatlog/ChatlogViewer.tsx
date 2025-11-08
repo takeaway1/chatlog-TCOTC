@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, MessageSquare, Download, AlertCircle, Image as ImageIcon, User } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { chatlogAPI } from '@/libs/ChatlogAPI';
+import { chatlogAPI, type GetChatlogParams } from '@/libs/ChatlogAPI';
 import { format } from 'date-fns';
 import { ExportDialog } from './ExportDialog';
 import {

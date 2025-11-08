@@ -40,6 +40,8 @@ export interface Message {
   bytesExtra: string;
   displayContent: string;
   sender: string;
+  senderName?: string;
+  senderAvatar?: string;
   contents?: MessageContents;
 }
 
