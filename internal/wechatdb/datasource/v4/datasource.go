@@ -553,16 +553,16 @@ func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset
 				FROM SessionTable
 				WHERE username = ? OR last_sender_display_name = ?
 				ORDER BY
-					CASE WHEN status IN (2, 4) THEN 0 ELSE 1 END,
+					CASE WHEN sort_timestamp > last_timestamp THEN 0 ELSE 1 END,
 					sort_timestamp DESC`
 		args = []interface{}{key, key}
 	} else {
 		// 查询所有会话
-		// Order: pinned sessions (status=2 or 4) first, then by sort_timestamp DESC
+		// Order: pinned sessions (sort_timestamp > last_timestamp) first, then by sort_timestamp DESC
 		query = `SELECT username, summary, last_timestamp, last_msg_sender, last_sender_display_name, unread_count, is_hidden, sort_timestamp, status
 				FROM SessionTable
 				ORDER BY
-					CASE WHEN status IN (2, 4) THEN 0 ELSE 1 END,
+					CASE WHEN sort_timestamp > last_timestamp THEN 0 ELSE 1 END,
 					sort_timestamp DESC`
 	}
 

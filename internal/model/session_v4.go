@@ -44,11 +44,10 @@ type SessionV4 struct {
 }
 
 func (s *SessionV4) Wrap() *Session {
-	// Determine if session is pinned using the status field:
-	// status=0: normal session
-	// status=2: pinned session
-	// status=4: pinned session with additional state (possibly muted)
-	isTopPinned := s.Status == 2 || s.Status == 4
+	// Determine if session is pinned:
+	// When pinned, WeChat updates sort_timestamp to current time, making it greater than last_timestamp
+	// This creates a time gap between sort_timestamp and last_timestamp
+	isTopPinned := s.SortTimestamp > int64(s.LastTimestamp)
 
 	return &Session{
 		UserName:     s.Username,
