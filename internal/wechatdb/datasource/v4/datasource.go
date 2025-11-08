@@ -372,11 +372,11 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 		// 按照关键字查询
 		query = `SELECT username, local_type, alias, remark, nick_name, big_head_url, small_head_url, head_img_md5
 				FROM contact
-				WHERE username = ? OR alias = ? OR remark = ? OR nick_name = ?`
+				WHERE (username = ? OR alias = ? OR remark = ? OR nick_name = ?) AND username NOT LIKE '%@chatroom'`
 		args = []interface{}{key, key, key, key}
 	} else {
 		// 查询所有联系人
-		query = `SELECT username, local_type, alias, remark, nick_name, big_head_url, small_head_url, head_img_md5 FROM contact`
+		query = `SELECT username, local_type, alias, remark, nick_name, big_head_url, small_head_url, head_img_md5 FROM contact WHERE username NOT LIKE '%@chatroom'`
 	}
 
 	// 添加排序、分页

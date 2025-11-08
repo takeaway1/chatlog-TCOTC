@@ -372,12 +372,13 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 		// 按照关键字查询
 		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), m_uiSex, IFNULL(m_nsAliasName,""), IFNULL(m_nsHeadImgUrl,""), IFNULL(m_nsHeadHDImgUrl,""), IFNULL(m_nsHeadHDMd5,"")
 				FROM WCContact
-				WHERE m_nsUsrName = ? OR nickname = ? OR m_nsRemark = ? OR m_nsAliasName = ?`
+				WHERE (m_nsUsrName = ? OR nickname = ? OR m_nsRemark = ? OR m_nsAliasName = ?) AND m_nsUsrName NOT LIKE '%@chatroom'`
 		args = []interface{}{key, key, key, key}
 	} else {
 		// 查询所有联系人
 		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), m_uiSex, IFNULL(m_nsAliasName,""), IFNULL(m_nsHeadImgUrl,""), IFNULL(m_nsHeadHDImgUrl,""), IFNULL(m_nsHeadHDMd5,"")
-				FROM WCContact`
+				FROM WCContact
+				WHERE m_nsUsrName NOT LIKE '%@chatroom'`
 	}
 
 	// 添加排序、分页

@@ -412,11 +412,11 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 	if key != "" {
 		// 按照关键字查询
 		query = `SELECT UserName, Alias, Remark, NickName, Reserved1, BigHeadImgUrl, SmallHeadImgUrl, HeadImgMd5 FROM Contact
-                WHERE UserName = ? OR Alias = ? OR Remark = ? OR NickName = ?`
+                WHERE (UserName = ? OR Alias = ? OR Remark = ? OR NickName = ?) AND UserName NOT LIKE '%@chatroom'`
 		args = []interface{}{key, key, key, key}
 	} else {
 		// 查询所有联系人
-		query = `SELECT UserName, Alias, Remark, NickName, Reserved1, BigHeadImgUrl, SmallHeadImgUrl, HeadImgMd5 FROM Contact`
+		query = `SELECT UserName, Alias, Remark, NickName, Reserved1, BigHeadImgUrl, SmallHeadImgUrl, HeadImgMd5 FROM Contact WHERE UserName NOT LIKE '%@chatroom'`
 	}
 
 	// 添加排序、分页
