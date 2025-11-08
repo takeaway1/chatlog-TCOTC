@@ -17,27 +17,34 @@ export function ConversationListPanel() {
   const [searchKeyword, setSearchKeyword] = useState('');
 
   // Fetch sessions
-  const { data: sessions, isLoading: isLoadingSessions } = useQuery({
+  const { data: sessions, isLoading: isLoadingSessions, error: sessionsError } = useQuery({
     queryKey: ['sessions'],
     queryFn: () => chatlogAPI.getSessions({ format: 'json' }),
     enabled: activeSection === 'chats',
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    gcTime: 1000 * 60 * 10, // Keep in cache for 10 minutes
   });
 
   // Fetch contacts
-  const { data: contacts, isLoading: isLoadingContacts } = useQuery({
+  const { data: contacts, isLoading: isLoadingContacts, error: contactsError } = useQuery({
     queryKey: ['contacts'],
     queryFn: () => chatlogAPI.getContacts({ format: 'json' }),
     enabled: activeSection === 'contacts',
+    staleTime: 1000 * 60 * 30, // Cache for 30 minutes (contacts change less frequently)
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
   });
 
   // Fetch chatrooms
-  const { data: chatrooms, isLoading: isLoadingChatrooms } = useQuery({
+  const { data: chatrooms, isLoading: isLoadingChatrooms, error: chatroomsError } = useQuery({
     queryKey: ['chatrooms'],
     queryFn: () => chatlogAPI.getChatRooms({ format: 'json' }),
     enabled: activeSection === 'groups',
+    staleTime: 1000 * 60 * 30, // Cache for 30 minutes
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
   });
 
   const isLoading = isLoadingSessions || isLoadingContacts || isLoadingChatrooms;
+  const error = sessionsError || contactsError || chatroomsError;
 
   // Filter and map data based on active section
   const items = (() => {
@@ -125,9 +132,17 @@ export function ConversationListPanel() {
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        {error ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4">
+            <p className="text-sm text-destructive text-center mb-2">加载失败</p>
+            <p className="text-xs text-muted-foreground text-center">
+              {error instanceof Error ? error.message : '未知错误'}
+            </p>
+          </div>
+        ) : isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
+            <p className="text-xs text-muted-foreground">加载中...</p>
           </div>
         ) : items.length === 0 ? (
           <div className="flex items-center justify-center py-12">

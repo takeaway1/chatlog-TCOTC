@@ -20,7 +20,7 @@ export function ChatPanel() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Fetch messages when conversation is selected
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['chatlog', selectedConversation?.id],
     queryFn: () => chatlogAPI.getChatlog({
       talker: selectedConversation!.id,
@@ -29,6 +29,8 @@ export function ChatPanel() {
       format: 'json',
     }),
     enabled: !!selectedConversation,
+    staleTime: 1000 * 60 * 2, // Cache for 2 minutes
+    gcTime: 1000 * 60 * 10, // Keep in cache for 10 minutes
   });
 
   useEffect(() => {
@@ -105,9 +107,20 @@ export function ChatPanel() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6">
-        {isLoading ? (
+        {error ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="text-center text-muted-foreground">
+              <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-20 text-destructive" />
+              <p className="text-destructive mb-1">加载失败</p>
+              <p className="text-xs">{error instanceof Error ? error.message : '未知错误'}</p>
+            </div>
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">加载消息中...</p>
+            </div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
