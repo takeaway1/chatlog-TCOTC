@@ -1,5 +1,5 @@
 import type { Message } from '@/libs/ChatlogAPI';
-import { format } from 'date-fns';
+import { format as formatDate } from 'date-fns';
 
 export type ExportFormat = 'json' | 'csv' | 'txt' | 'html' | 'markdown' | 'interview';
 
@@ -11,7 +11,7 @@ export interface ExportOptions {
 
 function formatTime(timestamp: number): string {
   try {
-    return format(new Date(timestamp * 1000), 'yyyy-MM-dd HH:mm:ss');
+    return formatDate(new Date(timestamp * 1000), 'yyyy-MM-dd HH:mm:ss');
   }
   catch {
     return String(timestamp);
@@ -111,7 +111,7 @@ export function exportToHTML(messages: Message[]): string {
 <body>
   <h1>聊天记录导出</h1>
   <div class="stats">
-    导出时间: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')} | 消息数量: ${messages.length}
+    导出时间: ${formatDate(new Date(), 'yyyy-MM-dd HH:mm:ss')} | 消息数量: ${messages.length}
   </div>
   <div class="messages">
     ${messageRows}
@@ -143,7 +143,7 @@ function getImageUrl(message: Message): string | null {
 export function exportToMarkdown(messages: Message[]): string {
   const header = `# 聊天记录导出
 
-**导出时间**: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}
+**导出时间**: ${formatDate(new Date(), 'yyyy-MM-dd HH:mm:ss')}
 **消息数量**: ${messages.length}
 
 ---
@@ -234,7 +234,7 @@ export function generateExportContent(format: ExportFormat, messages: Message[])
 
 export function downloadExport({ format, messages, filename }: ExportOptions): void {
   const content = generateExportContent(format, messages);
-  const timestamp = format(new Date(), 'yyyyMMdd_HHmmss');
+  const timestamp = formatDate(new Date(), 'yyyyMMdd_HHmmss');
   const extension = (format === 'markdown' || format === 'interview') ? 'md' : format;
   const defaultFilename = `chatlog_${timestamp}.${extension}`;
   const finalFilename = filename || defaultFilename;
