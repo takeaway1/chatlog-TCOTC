@@ -7,10 +7,10 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/internal/wechatdb/datasource"
-	"github.com/sjzar/chatlog/internal/wechatdb/indexer"
+	"github.com/takeaway1/chatlog-TCOTC/internal/errors"
+	"github.com/takeaway1/chatlog-TCOTC/internal/model"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/datasource"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/indexer"
 )
 
 // Repository 实现了 repository.Repository 接口

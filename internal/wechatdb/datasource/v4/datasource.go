@@ -17,11 +17,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/internal/wechatdb/datasource/dbm"
-	"github.com/sjzar/chatlog/internal/wechatdb/msgstore"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/takeaway1/chatlog-TCOTC/internal/errors"
+	"github.com/takeaway1/chatlog-TCOTC/internal/model"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/datasource/dbm"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/msgstore"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util"
 )
 
 const (
@@ -377,7 +377,7 @@ func (ds *DataSource) GetMessages(ctx context.Context, startTime, endTime time.T
 				SELECT m.sort_seq, m.server_id, m.local_type, n.user_name, m.create_time, m.message_content, m.packed_info_data, m.status
 				FROM %s m
 				LEFT JOIN Name2Id n ON m.real_sender_id = n.rowid
-				WHERE %s 
+				WHERE %s
 				ORDER BY m.sort_seq ASC
 			`, tableName, strings.Join(conditions, " AND "))
 
@@ -683,8 +683,8 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 
 	if key != "" {
 		// 按照关键字查询
-		query = `SELECT username, local_type, alias, remark, nick_name 
-				FROM contact 
+		query = `SELECT username, local_type, alias, remark, nick_name
+				FROM contact
 				WHERE username = ? OR alias = ? OR remark = ? OR nick_name = ?`
 		args = []interface{}{key, key, key, key}
 	} else {
@@ -859,15 +859,15 @@ func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset
 
 	if key != "" {
 		// 按照关键字查询
-		query = `SELECT username, summary, last_timestamp, last_msg_sender, last_sender_display_name 
-				FROM SessionTable 
+		query = `SELECT username, summary, last_timestamp, last_msg_sender, last_sender_display_name
+				FROM SessionTable
 				WHERE username = ? OR last_sender_display_name = ?
 				ORDER BY sort_timestamp DESC`
 		args = []interface{}{key, key}
 	} else {
 		// 查询所有会话
-		query = `SELECT username, summary, last_timestamp, last_msg_sender, last_sender_display_name 
-				FROM SessionTable 
+		query = `SELECT username, summary, last_timestamp, last_msg_sender, last_sender_display_name
+				FROM SessionTable
 				ORDER BY sort_timestamp DESC`
 	}
 
@@ -941,18 +941,18 @@ func (ds *DataSource) GetMedia(ctx context.Context, _type string, key string) (*
 	}
 
 	query := fmt.Sprintf(`
-	SELECT 
+	SELECT
 		f.md5,
 		f.file_name,
 		f.file_size,
 		f.modify_time,
 		IFNULL(d1.username,""),
 		IFNULL(d2.username,"")
-	FROM 
+	FROM
 		%s f
-	LEFT JOIN 
+	LEFT JOIN
 		dir2id d1 ON d1.rowid = f.dir1
-	LEFT JOIN 
+	LEFT JOIN
 		dir2id d2 ON d2.rowid = f.dir2
 	`, table)
 	query += " WHERE f.md5 = ? OR f.file_name LIKE ? || '%'"
@@ -1023,7 +1023,7 @@ func (ds *DataSource) GetVoice(ctx context.Context, key string) (*model.Media, e
 	query := `
 	SELECT voice_data
 	FROM VoiceInfo
-	WHERE svr_id = ? 
+	WHERE svr_id = ?
 	`
 	args := []interface{}{key}
 

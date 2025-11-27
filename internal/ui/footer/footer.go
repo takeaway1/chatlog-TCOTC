@@ -3,8 +3,8 @@ package footer
 import (
 	"fmt"
 
-	"github.com/sjzar/chatlog/internal/ui/style"
-	"github.com/sjzar/chatlog/pkg/version"
+	"github.com/takeaway1/chatlog-TCOTC/internal/ui/style"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/version"
 
 	"github.com/rivo/tview"
 )

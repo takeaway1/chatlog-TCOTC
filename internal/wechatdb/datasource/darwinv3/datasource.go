@@ -17,11 +17,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/internal/wechatdb/datasource/dbm"
-	"github.com/sjzar/chatlog/internal/wechatdb/msgstore"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/takeaway1/chatlog-TCOTC/internal/errors"
+	"github.com/takeaway1/chatlog-TCOTC/internal/model"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/datasource/dbm"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/msgstore"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util"
 )
 
 const (
@@ -521,8 +521,8 @@ func (ds *DataSource) GetMessages(ctx context.Context, startTime, endTime time.T
 		// 构建查询条件
 		query := fmt.Sprintf(`
 			SELECT msgCreateTime, msgContent, messageType, mesDes
-			FROM %s 
-			WHERE msgCreateTime >= ? AND msgCreateTime <= ? 
+			FROM %s
+			WHERE msgCreateTime >= ? AND msgCreateTime <= ?
 			ORDER BY msgCreateTime ASC
 		`, tableName)
 
@@ -646,13 +646,13 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 
 	if key != "" {
 		// 按照关键字查询
-		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), m_uiSex, IFNULL(m_nsAliasName,"") 
-				FROM WCContact 
+		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), m_uiSex, IFNULL(m_nsAliasName,"")
+				FROM WCContact
 				WHERE m_nsUsrName = ? OR nickname = ? OR m_nsRemark = ? OR m_nsAliasName = ?`
 		args = []interface{}{key, key, key, key}
 	} else {
 		// 查询所有联系人
-		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), m_uiSex, IFNULL(m_nsAliasName,"") 
+		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), m_uiSex, IFNULL(m_nsAliasName,"")
 				FROM WCContact`
 	}
 
@@ -704,13 +704,13 @@ func (ds *DataSource) GetChatRooms(ctx context.Context, key string, limit, offse
 
 	if key != "" {
 		// 按照关键字查询
-		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), IFNULL(m_nsChatRoomMemList,""), IFNULL(m_nsChatRoomAdminList,"") 
-				FROM GroupContact 
+		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), IFNULL(m_nsChatRoomMemList,""), IFNULL(m_nsChatRoomAdminList,"")
+				FROM GroupContact
 				WHERE m_nsUsrName = ? OR nickname = ? OR m_nsRemark = ?`
 		args = []interface{}{key, key, key}
 	} else {
 		// 查询所有群聊
-		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), IFNULL(m_nsChatRoomMemList,""), IFNULL(m_nsChatRoomAdminList,"") 
+		query = `SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), IFNULL(m_nsChatRoomMemList,""), IFNULL(m_nsChatRoomAdminList,"")
 				FROM GroupContact`
 	}
 
@@ -758,8 +758,8 @@ func (ds *DataSource) GetChatRooms(ctx context.Context, key string, limit, offse
 		if err == nil && len(contacts) > 0 && strings.HasSuffix(contacts[0].UserName, "@chatroom") {
 			// 再次尝试通过用户名查找群聊
 			rows, err := db.QueryContext(ctx,
-				`SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), IFNULL(m_nsChatRoomMemList,""), IFNULL(m_nsChatRoomAdminList,"") 
-				FROM GroupContact 
+				`SELECT IFNULL(m_nsUsrName,""), IFNULL(nickname,""), IFNULL(m_nsRemark,""), IFNULL(m_nsChatRoomMemList,""), IFNULL(m_nsChatRoomAdminList,"")
+				FROM GroupContact
 				WHERE m_nsUsrName = ?`,
 				contacts[0].UserName)
 
@@ -805,13 +805,13 @@ func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset
 
 	if key != "" {
 		// 按照关键字查询
-		query = `SELECT m_nsUserName, m_uLastTime 
-				FROM SessionAbstract 
+		query = `SELECT m_nsUserName, m_uLastTime
+				FROM SessionAbstract
 				WHERE m_nsUserName = ?`
 		args = []interface{}{key}
 	} else {
 		// 查询所有会话
-		query = `SELECT m_nsUserName, m_uLastTime 
+		query = `SELECT m_nsUserName, m_uLastTime
 				FROM SessionAbstract`
 	}
 
@@ -872,18 +872,18 @@ func (ds *DataSource) GetMedia(ctx context.Context, _type string, key string) (*
 	if key == "" {
 		return nil, errors.ErrKeyEmpty
 	}
-	query := `SELECT 
+	query := `SELECT
     r.mediaMd5,
     r.mediaSize,
     r.inodeNumber,
     r.modifyTime,
     d.relativePath,
     d.fileName
-FROM 
+FROM
     HlinkMediaRecord r
-JOIN 
+JOIN
     HlinkMediaDetail d ON r.inodeNumber = d.inodeNumber
-WHERE 
+WHERE
     r.mediaMd5 = ?`
 	args := []interface{}{key}
 	// 执行查询

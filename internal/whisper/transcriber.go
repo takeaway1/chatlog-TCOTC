@@ -19,7 +19,7 @@ import (
 	openaiparam "github.com/openai/openai-go/v3/packages/param"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/pkg/util/silk"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util/silk"
 )
 
 // OpenAIConfig describes how to initialise an OpenAI-backed transcriber.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sjzar/chatlog/internal/ui/style"
+	"github.com/takeaway1/chatlog-TCOTC/internal/ui/style"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"

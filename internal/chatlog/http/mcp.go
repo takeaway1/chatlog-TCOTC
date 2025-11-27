@@ -12,11 +12,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/pkg/util"
-	"github.com/sjzar/chatlog/pkg/version"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog/conf"
+	"github.com/takeaway1/chatlog-TCOTC/internal/errors"
+	"github.com/takeaway1/chatlog-TCOTC/internal/model"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/version"
 )
 
 func (s *Service) initMCPServer() {

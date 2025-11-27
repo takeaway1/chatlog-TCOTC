@@ -7,7 +7,7 @@ CGO_EXTRA_LDFLAGS :=
 ifeq ($(OS),Windows_NT)
 	CGO_EXTRA_LDFLAGS := -lgomp
 endif
-LDFLAGS := -ldflags '-X "github.com/sjzar/chatlog/pkg/version.Version=$(VERSION)" -w -s'
+LDFLAGS := -ldflags '-X "github.com/takeaway1/chatlog-TCOTC/pkg/version.Version=$(VERSION)" -w -s'
 CGOFLAGS := CGO_ENABLED=1 CGO_CFLAGS="-I$(abspath $(CURDIR)/include)" CGO_LDFLAGS="-L$(abspath $(CURDIR)/library) $(CGO_EXTRA_LDFLAGS)"
 TAGS := --tags "fts5,nowhispercpp"
 

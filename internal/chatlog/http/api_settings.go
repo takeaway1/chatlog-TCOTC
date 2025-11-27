@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog/conf"
 )
 
 type settingRequest struct {

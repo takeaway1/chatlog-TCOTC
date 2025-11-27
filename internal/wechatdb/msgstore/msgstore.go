@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/sjzar/chatlog/internal/model"
+	"github.com/takeaway1/chatlog-TCOTC/internal/model"
 )
 
 // Store describes a physical message database and its derived FTS index metadata.

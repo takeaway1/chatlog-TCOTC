@@ -6,12 +6,12 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/internal/wechatdb/datasource/darwinv3"
-	v4 "github.com/sjzar/chatlog/internal/wechatdb/datasource/v4"
-	"github.com/sjzar/chatlog/internal/wechatdb/datasource/windowsv3"
-	"github.com/sjzar/chatlog/internal/wechatdb/msgstore"
+	"github.com/takeaway1/chatlog-TCOTC/internal/errors"
+	"github.com/takeaway1/chatlog-TCOTC/internal/model"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/datasource/darwinv3"
+	v4 "github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/datasource/v4"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/datasource/windowsv3"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/msgstore"
 )
 
 type DataSource interface {

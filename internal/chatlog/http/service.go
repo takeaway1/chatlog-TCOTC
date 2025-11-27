@@ -10,10 +10,10 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
-	"github.com/sjzar/chatlog/internal/chatlog/database"
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/whisper"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog/conf"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog/database"
+	"github.com/takeaway1/chatlog-TCOTC/internal/errors"
+	"github.com/takeaway1/chatlog-TCOTC/internal/whisper"
 )
 
 type Service struct {

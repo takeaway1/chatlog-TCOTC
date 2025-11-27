@@ -3,8 +3,8 @@ package chatlog
 import (
 	"runtime"
 
-	"github.com/sjzar/chatlog/internal/chatlog"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"

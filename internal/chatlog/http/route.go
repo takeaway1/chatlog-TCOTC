@@ -21,11 +21,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/pkg/util"
-	"github.com/sjzar/chatlog/pkg/util/dat2img"
-	"github.com/sjzar/chatlog/pkg/util/silk"
+	"github.com/takeaway1/chatlog-TCOTC/internal/errors"
+	"github.com/takeaway1/chatlog-TCOTC/internal/model"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util/dat2img"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util/silk"
 )
 
 //go:embed static
@@ -1317,7 +1317,7 @@ func (s *Service) handleContacts(c *gin.Context) {
 		c.Writer.WriteHeader(http.StatusOK)
 		c.Writer.Write([]byte(`<style>
   .contacts{font-family:Arial,Helvetica,sans-serif;font-size:14px;}
-  .c-item{display:flex;align-items:center;gap:10px;border:1px solid #ddd;border-radius:6px;padding:6px 8px;margin:6px 0;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);} 
+  .c-item{display:flex;align-items:center;gap:10px;border:1px solid #ddd;border-radius:6px;padding:6px 8px;margin:6px 0;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);}
   .c-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#f2f2f2;border:1px solid #eee}
   .c-name{font-weight:600;color:#2c3e50}
   .c-sub{color:#666;font-size:12px}
@@ -1482,7 +1482,7 @@ func (s *Service) handleSessions(c *gin.Context) {
 		c.Writer.WriteHeader(http.StatusOK)
 		c.Writer.Write([]byte(`<style>
   .sessions-wrap{font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;}
-  .session-item{border:1px solid #ddd;border-radius:6px;padding:8px 10px;margin:8px 0;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);} 
+  .session-item{border:1px solid #ddd;border-radius:6px;padding:8px 10px;margin:8px 0;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);}
   .session-head{font-weight:600;color:#2c3e50;margin-bottom:4px;}
   .session-head .uname{color:#888;font-weight:400;margin-left:6px;}
   .session-time{color:#16a085;font-size:12px;margin-left:4px;}

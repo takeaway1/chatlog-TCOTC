@@ -3,11 +3,11 @@ package key
 import (
 	"context"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat/decrypt"
-	"github.com/sjzar/chatlog/internal/wechat/key/darwin"
-	"github.com/sjzar/chatlog/internal/wechat/key/windows"
-	"github.com/sjzar/chatlog/internal/wechat/model"
+	"github.com/takeaway1/chatlog-TCOTC/internal/errors"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechat/decrypt"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechat/key/darwin"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechat/key/windows"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechat/model"
 )
 
 // Extractor 定义密钥提取器接口

@@ -12,16 +12,16 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
-	"github.com/sjzar/chatlog/internal/chatlog/ctx"
-	"github.com/sjzar/chatlog/internal/chatlog/database"
-	"github.com/sjzar/chatlog/internal/chatlog/http"
-	"github.com/sjzar/chatlog/internal/chatlog/wechat"
-	"github.com/sjzar/chatlog/internal/tray"
-	iwechat "github.com/sjzar/chatlog/internal/wechat"
-	"github.com/sjzar/chatlog/pkg/config"
-	"github.com/sjzar/chatlog/pkg/util"
-	"github.com/sjzar/chatlog/pkg/util/dat2img"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog/conf"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog/ctx"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog/database"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog/http"
+	"github.com/takeaway1/chatlog-TCOTC/internal/chatlog/wechat"
+	"github.com/takeaway1/chatlog-TCOTC/internal/tray"
+	iwechat "github.com/takeaway1/chatlog-TCOTC/internal/wechat"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/config"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util/dat2img"
 )
 
 const initialDecryptPollInterval = 5 * time.Second

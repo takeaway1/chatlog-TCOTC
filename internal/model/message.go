@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util"
 )
 
 var Debug = false

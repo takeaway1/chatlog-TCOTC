@@ -3,7 +3,7 @@ package help
 import (
 	"fmt"
 
-	"github.com/sjzar/chatlog/internal/ui/style"
+	"github.com/takeaway1/chatlog-TCOTC/internal/ui/style"
 
 	"github.com/rivo/tview"
 )

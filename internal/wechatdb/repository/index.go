@@ -13,10 +13,10 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/internal/wechatdb/indexer"
-	"github.com/sjzar/chatlog/internal/wechatdb/msgstore"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/takeaway1/chatlog-TCOTC/internal/model"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/indexer"
+	"github.com/takeaway1/chatlog-TCOTC/internal/wechatdb/msgstore"
+	"github.com/takeaway1/chatlog-TCOTC/pkg/util"
 )
 
 type ftsIndexable interface {
