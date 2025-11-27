@@ -12,6 +12,8 @@ builds:
       - -s -w -X {{ .Env.GITHUB_REPOSITORY }}/pkg/version.Version={{.Version}}
     env:
       - CGO_ENABLED=1
+      - CGO_CFLAGS=-I${GITHUB_WORKSPACE}/include
+      - CGO_LDFLAGS=-L${GITHUB_WORKSPACE}/library
     goos:
       - darwin
       - windows
@@ -24,36 +26,48 @@ builds:
         goarch: amd64
         env:
           - CGO_ENABLED=1
+          - CGO_CFLAGS=-I${GITHUB_WORKSPACE}/include
+          - CGO_LDFLAGS=-L${GITHUB_WORKSPACE}/library
           - CC=o64-clang
           - CXX=o64-clang++
       - goos: darwin
         goarch: arm64
         env:
           - CGO_ENABLED=1
+          - CGO_CFLAGS=-I${GITHUB_WORKSPACE}/include
+          - CGO_LDFLAGS=-L${GITHUB_WORKSPACE}/library
           - CC=oa64-clang
           - CXX=oa64-clang++
       - goos: windows
         goarch: amd64
         env:
           - CGO_ENABLED=1
+          - CGO_CFLAGS=-I${GITHUB_WORKSPACE}/include
+          - CGO_LDFLAGS=-L${GITHUB_WORKSPACE}/library
           - CC=x86_64-w64-mingw32-gcc
           - CXX=x86_64-w64-mingw32-g++
       - goos: windows
         goarch: arm64
         env:
           - CGO_ENABLED=1
+          - CGO_CFLAGS=-I${GITHUB_WORKSPACE}/include
+          - CGO_LDFLAGS=-L${GITHUB_WORKSPACE}/library
           - CC=/llvm-mingw/bin/aarch64-w64-mingw32-gcc
           - CXX=/llvm-mingw/bin/aarch64-w64-mingw32-g++
       - goos: linux
         goarch: amd64
         env:
           - CGO_ENABLED=1
+          - CGO_CFLAGS=-I${GITHUB_WORKSPACE}/include
+          - CGO_LDFLAGS=-L${GITHUB_WORKSPACE}/library
           - CC=x86_64-linux-gnu-gcc
           - CXX=x86_64-linux-gnu-g++
       - goos: linux
         goarch: arm64
         env:
           - CGO_ENABLED=1
+          - CGO_CFLAGS=-I${GITHUB_WORKSPACE}/include
+          - CGO_LDFLAGS=-L${GITHUB_WORKSPACE}/library
           - CC=aarch64-linux-gnu-gcc
           - CXX=aarch64-linux-gnu-g++
 
