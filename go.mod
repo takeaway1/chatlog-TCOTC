@@ -1,4 +1,4 @@
-module github.com/sjzar/chatlog
+module github.com/takeaway1/chatlog-TCOTC
 
 go 1.24.0
 
