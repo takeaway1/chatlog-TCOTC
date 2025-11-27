@@ -9,7 +9,7 @@ ifeq ($(OS),Windows_NT)
 endif
 LDFLAGS := -ldflags '-X "github.com/sjzar/chatlog/pkg/version.Version=$(VERSION)" -w -s'
 CGOFLAGS := CGO_ENABLED=1 CGO_CFLAGS="-I$(abspath $(CURDIR)/include)" CGO_LDFLAGS="-L$(abspath $(CURDIR)/library) $(CGO_EXTRA_LDFLAGS)"
-TAGS := --tags "fts5"
+TAGS := --tags "fts5,nowhispercpp"
 
 PLATFORMS := \
     darwin/amd64 \

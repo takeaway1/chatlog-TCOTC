@@ -1,3 +1,5 @@
+//go:build !nowhispercpp
+
 package whisper
 
 import (
