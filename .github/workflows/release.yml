@@ -55,5 +55,7 @@ jobs:
       - name: Run GoReleaser
         run: goreleaser release --clean
         env:
+          CGO_CFLAGS: -I${{ github.workspace }}/include
+          CGO_LDFLAGS: -L${{ github.workspace }}/library
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
