@@ -24,48 +24,48 @@ builds:
         goarch: amd64
         env:
           - CGO_ENABLED=1
-          - CGO_CFLAGS={{ .Env.CGO_CFLAGS }}
-          - CGO_LDFLAGS={{ .Env.CGO_LDFLAGS }}
+          - CGO_CFLAGS=-I./include
+          - CGO_LDFLAGS=-L./library
           - CC=o64-clang
           - CXX=o64-clang++
       - goos: darwin
         goarch: arm64
         env:
           - CGO_ENABLED=1
-          - CGO_CFLAGS={{ .Env.CGO_CFLAGS }}
-          - CGO_LDFLAGS={{ .Env.CGO_LDFLAGS }}
+          - CGO_CFLAGS=-I./include
+          - CGO_LDFLAGS=-L./library
           - CC=oa64-clang
           - CXX=oa64-clang++
       - goos: windows
         goarch: amd64
         env:
           - CGO_ENABLED=1
-          - CGO_CFLAGS={{ .Env.CGO_CFLAGS }}
-          - CGO_LDFLAGS={{ .Env.CGO_LDFLAGS }}
+          - CGO_CFLAGS=-I./include
+          - CGO_LDFLAGS=-L./library
           - CC=x86_64-w64-mingw32-gcc
           - CXX=x86_64-w64-mingw32-g++
       - goos: windows
         goarch: arm64
         env:
           - CGO_ENABLED=1
-          - CGO_CFLAGS={{ .Env.CGO_CFLAGS }}
-          - CGO_LDFLAGS={{ .Env.CGO_LDFLAGS }}
+          - CGO_CFLAGS=-I./include
+          - CGO_LDFLAGS=-L./library
           - CC=/llvm-mingw/bin/aarch64-w64-mingw32-gcc
           - CXX=/llvm-mingw/bin/aarch64-w64-mingw32-g++
       - goos: linux
         goarch: amd64
         env:
           - CGO_ENABLED=1
-          - CGO_CFLAGS={{ .Env.CGO_CFLAGS }}
-          - CGO_LDFLAGS={{ .Env.CGO_LDFLAGS }}
+          - CGO_CFLAGS=-I./include
+          - CGO_LDFLAGS=-L./library
           - CC=x86_64-linux-gnu-gcc
           - CXX=x86_64-linux-gnu-g++
       - goos: linux
         goarch: arm64
         env:
           - CGO_ENABLED=1
-          - CGO_CFLAGS={{ .Env.CGO_CFLAGS }}
-          - CGO_LDFLAGS={{ .Env.CGO_LDFLAGS }}
+          - CGO_CFLAGS=-I./include
+          - CGO_LDFLAGS=-L./library
           - CC=aarch64-linux-gnu-gcc
           - CXX=aarch64-linux-gnu-g++
 
