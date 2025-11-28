@@ -178,14 +178,17 @@ func ScanAndSetXorKey(dirPath string) (byte, error) {
 
 		// Set global XOR key
 		V4XorKey = key
+		log.Info().Msgf("Calculated WeChat v4 XOR key: 0x%x from file: %s", V4XorKey, path)
 
 		// Stop traversal after finding a valid key
 		return filepath.SkipAll
 	})
 
 	if err != nil && err != filepath.SkipAll {
+		log.Info().Msgf("Error scanning directory for XOR key: %v", err)
 		return V4XorKey, fmt.Errorf("error scanning directory: %v", err)
 	}
+	log.Info().Msgf("WeChat v4 XOR key set to: 0x%x", V4XorKey)
 
 	return V4XorKey, nil
 }
