@@ -54,6 +54,7 @@ func Dat2Image(data []byte) ([]byte, string, error) {
 	if len(data) >= 6 {
 		for _, format := range V4Formats {
 			if bytes.Equal(data[:4], format.Header) {
+				log.Info().Msg("Dat2Image with Key: " + hex.EncodeToString(format.AesKey))
 				return Dat2ImageV4(data, format.AesKey)
 			}
 		}
@@ -232,6 +233,7 @@ func Dat2ImageV4(data []byte, aeskey []byte) ([]byte, string, error) {
 	// Decrypt AES part
 	aesDecryptedData, err := decryptAESECB(fileData[:aesEncryptLen0], aeskey)
 	if err != nil {
+		log.Info().Msg("[#236]AES decrypt error: " + err.Error())
 		return nil, "", fmt.Errorf("AES decrypt error: %v", err)
 	}
 
@@ -281,7 +283,7 @@ func Dat2ImageV4(data []byte, aeskey []byte) ([]byte, string, error) {
 	if imgType == "" {
 		return nil, "", fmt.Errorf("unknown image type after decryption")
 	}
-
+	log.Info().Msg("Dat2ImageV4 decoded image type: " + imgType)
 	return result, imgType, nil
 }
 

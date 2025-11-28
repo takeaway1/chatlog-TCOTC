@@ -356,7 +356,9 @@ func (m *Manager) StartService() error {
 
 	// 如果是 4.0 版本，更新下 xorkey
 	if m.ctx.Version == 4 {
+		log.Info().Msg("[#359]set image key for version 4.0: " + m.ctx.ImgKey)
 		dat2img.SetAesKey(m.ctx.ImgKey)
+		log.Info().Msg("[#361]scan and set xor key for version 4.0" + m.ctx.DataDir)
 		go dat2img.ScanAndSetXorKey(m.ctx.DataDir)
 	}
 
@@ -559,7 +561,9 @@ func (m *Manager) CommandKey(configPath string, pid int, force bool, showXorKey 
 			}
 			result := fmt.Sprintf("Data Key: [%s]\nImage Key: [%s]", key, imgKey)
 			if m.ctx.Version == 4 && showXorKey {
+				log.Info().Msg("[#563]scan and set xor key for version 4.0" + m.ctx.DataDir)
 				if b, err := dat2img.ScanAndSetXorKey(m.ctx.DataDir); err == nil {
+					log.Info().Msgf("Xor Key: [0x%X]", b)
 					result += fmt.Sprintf("\nXor Key: [0x%X]", b)
 				}
 			}
@@ -618,7 +622,9 @@ func (m *Manager) CommandHTTPServer(configPath string, cmdConf map[string]any) e
 	// 如果是 4.0 版本，处理图片密钥
 	version := m.sc.GetVersion()
 	if version == 4 && len(dataDir) != 0 {
+		log.Info().Msg("[#622]set image key for version 4.0: " + m.sc.GetImgKey())
 		dat2img.SetAesKey(m.sc.GetImgKey())
+		log.Info().Msg("[#624]scan and set xor key for version 4.0" + dataDir)
 		go dat2img.ScanAndSetXorKey(dataDir)
 	}
 
