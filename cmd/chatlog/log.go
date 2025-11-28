@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sjzar/chatlog/internal/chatlog/conf"
 	"github.com/sjzar/chatlog/pkg/util"
 
 	"github.com/rs/zerolog"
@@ -31,7 +32,18 @@ func initLog(cmd *cobra.Command, args []string) {
 }
 
 func initTuiLog(cmd *cobra.Command, args []string) {
-	logpath := util.DefaultWorkDir("")
+	var logpath string
+	if cfg, _, err := conf.LoadTUIConfig(""); err == nil {
+		if history := cfg.ParseHistory(); len(history) > 0 {
+			if pc, ok := history[cfg.LastAccount]; ok {
+				logpath = pc.WorkDir
+			}
+		}
+	}
+
+	if logpath == "" {
+		logpath = util.DefaultWorkDir("")
+	}
 	util.PrepareDir(logpath)
 
 	logFile, err := os.OpenFile(filepath.Join(logpath, "chatlog.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
