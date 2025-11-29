@@ -46,7 +46,7 @@
 				border-radius: 10px;
 				padding: 25px;
 				width: 100%;
-				max-width: 850px;
+
 				margin-bottom: 30px;
 				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 			}
@@ -331,6 +331,34 @@
 				border-bottom: 1px solid white;
 			}
 
+			.sub-tab {
+				padding: 8px 16px;
+				cursor: pointer;
+				margin-right: 5px;
+				border-radius: 6px 6px 0 0;
+				font-weight: 500;
+				transition: all 0.2s;
+				border: 1px solid transparent;
+				border-bottom: none;
+				position: relative;
+				bottom: -1px;
+				font-size: 14px;
+				color: #666;
+			}
+
+			.sub-tab:hover {
+				background-color: #f0f8ff;
+				color: var(--primary-color);
+			}
+
+			.sub-tab.active {
+				background-color: var(--bg-white);
+				border-color: #e0e0e0;
+				color: var(--primary-color);
+				border-bottom: 1px solid white;
+				font-weight: 600;
+			}
+
 			.tab-content {
 				display: none;
 				padding: 20px 0;
@@ -427,9 +455,9 @@
 				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 			}
 
-			.settings-card--wide {
+			/*.settings-card--wide {
 				grid-column: 1 / -1;
-			}
+			}*/
 
 			.settings-card h3 {
 				margin-top: 0;
@@ -609,6 +637,8 @@
 						<div class="tab" data-tab="chatlog">聊天记录</div>
 						<div class="tab" data-tab="search">搜索</div>
 						<div class="tab" data-tab="diary">日记</div>
+						<div class="tab" data-tab="dashboard">数据统计</div>
+						<div class="tab" data-tab="media">多媒体</div>
 						<div class="tab" data-tab="settings">系统设置</div>
 					</div>
 
@@ -969,32 +999,142 @@
 						</div>
 					</div>
 
-					<button id="test-api">执行查询</button>
 
-					<div
-						id="result-wrapper"
-						style="display: none; margin-top: 20px"
-					>
-						<div class="request-url" id="request-url-container">
-							<span class="url-text" id="request-url"></span>
-							<button
-								class="copy-button copy-url-button"
-								id="copy-url"
-							>
-								复制请求URL
-							</button>
-						</div>
-						<div class="result-container" id="api-result">
-							<p>查询结果将显示在这里...</p>
-						</div>
-						<div class="button-group">
-							<button class="copy-button" id="copy-result">
-								复制结果
-							</button>
-						</div>
-					</div>
-					<div class="error-message" id="error-message"></div>
-				</div>
+
+    				<!-- Dashboard 数据统计 -->
+    				<div class="tab-content" id="dashboard-tab">
+    					<div class="api-description">
+    						<p>
+    							获取聊天数据的统计信息和可视化数据。<span class="badge">GET /api/v1/dashboard</span>
+    						</p>
+    					</div>
+    					<div class="form-group">
+    						<label for="dashboard-format">输出格式：<span class="optional-param">可选</span></label>
+    						<select id="dashboard-format">
+    							<option value="">默认 (JSON)</option>
+    							<option value="json">JSON</option>
+    							<option value="html">HTML</option>
+    						</select>
+    					</div>
+    					<button onclick="testDashboardAPI()">测试 Dashboard API</button>
+    				</div>
+
+    				<!-- 多媒体接口 -->
+    				<div class="tab-content" id="media-tab">
+    					<div class="api-description">
+    						<p>
+    							<strong>测试多媒体接口</strong><span class="badge">多媒体 API</span>
+    						</p>
+    						<p style="color: #666; font-size: 14px; margin-top: 10px;">
+    							💡 提示：需要从聊天记录中获取对应的 ID。图片会自动解密，语音会自动转码为 MP3。
+    						</p>
+    					</div>
+
+    					<!-- Media Sub-tabs -->
+    					<div class="tab-container" style="margin-top: 20px; margin-bottom: 20px;">
+    						<div class="sub-tab active" onclick="switchMediaTab('image')" id="media-subtab-image">📷 图片</div>
+    						<div class="sub-tab" onclick="switchMediaTab('video')" id="media-subtab-video">🎬 视频</div>
+    						<div class="sub-tab" onclick="switchMediaTab('voice')" id="media-subtab-voice">🎤 语音</div>
+    						<div class="sub-tab" onclick="switchMediaTab('avatar')" id="media-subtab-avatar">👤 头像</div>
+    						<div class="sub-tab" onclick="switchMediaTab('data')" id="media-subtab-data">📁 文件</div>
+    					</div>
+
+    					<!-- Image Section -->
+    					<div id="media-section-image" class="media-section">
+    						<h3 style="margin-bottom: 15px;">📷 图片接口</h3>
+    						<div class="form-group">
+    							<label for="media-image-id">图片 ID：<span class="required-field">*</span></label>
+    							<input type="text" id="media-image-id" placeholder="从聊天记录中获取的图片 ID" />
+    						</div>
+    						<button onclick="testMediaAPI('image')">获取图片</button>
+    					</div>
+
+    					<!-- Video Section -->
+    					<div id="media-section-video" class="media-section" style="display: none;">
+    						<h3 style="margin-bottom: 15px;">🎬 视频接口</h3>
+    						<div class="form-group">
+    							<label for="media-video-id">视频 ID：<span class="required-field">*</span></label>
+    							<input type="text" id="media-video-id" placeholder="从聊天记录中获取的视频 ID" />
+    						</div>
+    						<button onclick="testMediaAPI('video')">获取视频</button>
+    					</div>
+
+    					<!-- Voice Section -->
+    					<div id="media-section-voice" class="media-section" style="display: none;">
+    						<h3 style="margin-bottom: 15px;">🎤 语音接口</h3>
+    						<div class="form-group">
+    							<label for="media-voice-id">语音 ID：<span class="required-field">*</span></label>
+    							<input type="text" id="media-voice-id" placeholder="从聊天记录中获取的语音 ID" />
+    						</div>
+    						<div class="form-group">
+    							<label>
+    								<input type="checkbox" id="media-voice-transcribe" style="width: auto; margin-right: 8px;" />
+    								启用语音转文字
+    							</label>
+    						</div>
+    						<button onclick="testMediaAPI('voice')">获取语音</button>
+    					</div>
+
+    					<!-- Avatar Section -->
+    					<div id="media-section-avatar" class="media-section" style="display: none;">
+    						<h3 style="margin-bottom: 15px;">👤 头像接口</h3>
+    						<div class="form-group">
+    							<label for="media-avatar-username">微信 ID：<span class="required-field">*</span></label>
+    							<input type="text" id="media-avatar-username" placeholder="wxid_xxx 或群聊 ID" />
+    						</div>
+    						<button onclick="testMediaAPI('avatar')">获取头像</button>
+    					</div>
+
+    					<!-- Data Section -->
+    					<div id="media-section-data" class="media-section" style="display: none;">
+    						<h3 style="margin-bottom: 15px;">📁 数据文件接口</h3>
+    						<div class="form-group">
+    							<label for="media-data-path">文件路径：<span class="required-field">*</span></label>
+    							<input type="text" id="media-data-path" placeholder="相对于数据目录的文件路径，如: Msg/xxx.jpg" />
+    						</div>
+    						<button onclick="testMediaAPI('data')">获取文件</button>
+    					</div>
+
+    					<script>
+    						function switchMediaTab(type) {
+    							// Hide all sections
+    							document.querySelectorAll('.media-section').forEach(el => el.style.display = 'none');
+    							// Deactivate all tabs
+    							document.querySelectorAll('[id^="media-subtab-"]').forEach(el => el.classList.remove('active'));
+
+    							// Show selected section
+    							document.getElementById('media-section-' + type).style.display = 'block';
+    							// Activate selected tab
+    							document.getElementById('media-subtab-' + type).classList.add('active');
+    						}
+    					</script>
+    				</div>
+    				<button id="test-api">执行查询</button>
+
+    				<div
+    					id="result-wrapper"
+    					style="display: none; margin-top: 20px"
+    				>
+    					<div class="request-url" id="request-url-container">
+    						<span class="url-text" id="request-url"></span>
+    						<button
+    							class="copy-button copy-url-button"
+    							id="copy-url"
+    						>
+    							复制请求URL
+    						</button>
+    					</div>
+    					<div class="result-container" id="api-result">
+    						<p>查询结果将显示在这里...</p>
+    					</div>
+    					<div class="button-group">
+    						<button class="copy-button" id="copy-result">
+    							复制结果
+    						</button>
+    					</div>
+    				</div>
+    				<div class="error-message" id="error-message"></div>
+    			</div>
 
 				<!-- 设置管理 -->
 				<div class="tab-content" id="settings-tab">
@@ -1144,24 +1284,6 @@
 						</div>
 					</div>
 				</div>
-			</div>
-
-			<div class="api-section">
-				<h2>🤖 MCP 集成</h2>
-				<p>
-					Chatlog 支持 MCP (Model Context Protocol) SSE 协议，可与支持
-					MCP 的 AI 助手无缝集成。
-				</p>
-				<p>SSE 端点：<strong>/sse</strong></p>
-				<p>
-					详细集成指南请参考
-					<a
-						href="https://github.com/sjzar/chatlog/blob/main/docs/mcp.md"
-						class="docs-link"
-						target="_blank"
-						>MCP 集成指南</a
-					>
-				</p>
 			</div>
 
 			<div class="api-section">
@@ -1839,8 +1961,10 @@
 					}
 
 					const isSettings = newTab === SETTINGS_TAB;
+					const isMedia = newTab === "media" || newTab === "media-advanced";
+					const isDashboard = newTab === "dashboard";
 					if (testApiButton) {
-						testApiButton.style.display = isSettings
+						testApiButton.style.display = isSettings || isMedia || isDashboard
 							? "none"
 							: "inline-flex";
 					}
@@ -2514,6 +2638,199 @@
 				} catch (e) {
 					console.error("回退复制失败:", e);
 					return false;
+				}
+			}
+			// Dashboard API 测试函数
+			async function testDashboardAPI() {
+				const resultContainer = document.getElementById("api-result");
+				const requestUrlContainer = document.getElementById("request-url");
+				const errorMessage = document.getElementById("error-message");
+				const wrapper = document.getElementById("result-wrapper");
+
+				const format = document.getElementById("dashboard-format")?.value || "";
+
+				let url = "/api/v1/dashboard";
+				const params = new URLSearchParams();
+				if (format) params.append("format", format);
+
+				if (params.toString()) {
+					url += "?" + params.toString();
+				}
+
+				const fullUrl = `${window.location.origin}${url}`;
+				const reqUrlEl = typeof requestUrlElement !== 'undefined' ? requestUrlElement : document.getElementById("request-url");
+				if (reqUrlEl) {
+					reqUrlEl.textContent = fullUrl;
+				}
+
+				if (requestUrlContainer) requestUrlContainer.textContent = fullUrl;
+
+				if (wrapper) wrapper.style.display = "none";
+				if (errorMessage) errorMessage.style.display = "none";
+				if (resultContainer) resultContainer.innerHTML = '<div class="loading"></div>';
+
+				try {
+					const response = await fetch(url, {
+						method: "GET",
+						headers: { Accept: "application/json" },
+					});
+
+					if (!response.ok) {
+						let errorText = "Unknown error";
+						try {
+							errorText = await extractErrorMessage(response);
+						} catch (e) {
+							errorText = `HTTP ${response.status}`;
+						}
+						throw new Error(errorText);
+					}
+
+					const contentType = response.headers.get("Content-Type") || "";
+
+					if (contentType.includes("text/html")) {
+						const html = await response.text();
+						if (resultContainer) resultContainer.innerHTML = html;
+					} else {
+						const data = await response.json();
+						if (resultContainer) resultContainer.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+					}
+
+					if (wrapper) wrapper.style.display = "block";
+				} catch (error) {
+					if (resultContainer) resultContainer.innerHTML = "";
+					if (errorMessage) {
+						errorMessage.textContent = `错误: ${error.message}`;
+						errorMessage.style.display = "block";
+					}
+					if (wrapper) wrapper.style.display = "block";
+				}
+			}
+
+			// 多媒体接口测试函数
+			async function testMediaAPI(type) {
+				const resultContainer = document.getElementById("api-result");
+				const requestUrlContainer = document.getElementById("request-url");
+				const errorMessage = document.getElementById("error-message");
+				const wrapper = document.getElementById("result-wrapper");
+
+				let url = "";
+				let id = "";
+
+				switch (type) {
+					case "image":
+						id = document.getElementById("media-image-id")?.value.trim();
+						if (!id) { alert("请输入图片 ID"); return; }
+						url = `/image/${encodeURIComponent(id)}`;
+						break;
+					case "video":
+						id = document.getElementById("media-video-id")?.value.trim();
+						if (!id) { alert("请输入视频 ID"); return; }
+						url = `/video/${encodeURIComponent(id)}`;
+						break;
+					case "voice":
+						id = document.getElementById("media-voice-id")?.value.trim();
+						if (!id) { alert("请输入语音 ID"); return; }
+						const transcribe = document.getElementById("media-voice-transcribe")?.checked;
+						url = `/voice/${encodeURIComponent(id)}${transcribe ? "?transcribe=1" : ""}`;
+						break;
+					case "avatar":
+						id = document.getElementById("media-avatar-username")?.value.trim();
+						if (!id) { alert("请输入微信 ID"); return; }
+						url = `/avatar/${encodeURIComponent(id)}`;
+						break;
+					case "data":
+						id = document.getElementById("media-data-path")?.value.trim();
+						if (!id) { alert("请输入文件路径"); return; }
+						url = `/data/${id}`;
+						break;
+				}
+
+				const fullUrl = `${window.location.origin}${url}`;
+				const reqUrlEl = typeof requestUrlElement !== 'undefined' ? requestUrlElement : document.getElementById("request-url");
+				if (reqUrlEl) reqUrlEl.textContent = fullUrl;
+				if (requestUrlContainer) requestUrlContainer.textContent = fullUrl;
+
+				if (wrapper) wrapper.style.display = "none";
+				if (errorMessage) errorMessage.style.display = "none";
+				if (resultContainer) resultContainer.innerHTML = '<div class="loading"></div>';
+
+				try {
+					const response = await fetch(url, {
+						method: "GET",
+						redirect: "follow",
+					});
+
+					if (!response.ok) {
+						throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+					}
+
+					const contentType = response.headers.get("Content-Type") || "";
+
+					if (type === "voice" && document.getElementById("media-voice-transcribe")?.checked && contentType.includes("application/json")) {
+						const data = await response.json();
+						if (resultContainer) resultContainer.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+					} else if (contentType.startsWith("image/")) {
+						const blob = await response.blob();
+						const objectUrl = URL.createObjectURL(blob);
+						if (resultContainer) resultContainer.innerHTML = `
+							<div style="text-align: center;">
+								<img src="${objectUrl}" style="max-width: 100%; max-height: 600px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" alt="预览图片" />
+								<p style="margin-top: 10px;">
+									<a href="${fullUrl}" target="_blank" class="docs-link">在新窗口打开</a>
+								</p>
+							</div>
+						`;
+					} else if (contentType.startsWith("audio/")) {
+						const blob = await response.blob();
+						const objectUrl = URL.createObjectURL(blob);
+						if (resultContainer) resultContainer.innerHTML = `
+							<div style="text-align: center;">
+								<audio controls style="width: 100%; max-width: 500px;">
+									<source src="${objectUrl}" type="${contentType}">
+									您的浏览器不支持音频播放。
+								</audio>
+								<p style="margin-top: 10px;">
+									<a href="${fullUrl}" target="_blank" class="docs-link">下载音频</a>
+								</p>
+							</div>
+						`;
+					} else if (contentType.startsWith("video/")) {
+						const blob = await response.blob();
+						const objectUrl = URL.createObjectURL(blob);
+						if (resultContainer) resultContainer.innerHTML = `
+							<div style="text-align: center;">
+								<video controls style="max-width: 100%; max-height: 600px; border-radius: 8px;">
+									<source src="${objectUrl}" type="${contentType}">
+									您的浏览器不支持视频播放。
+								</video>
+								<p style="margin-top: 10px;">
+									<a href="${fullUrl}" target="_blank" class="docs-link">在新窗口打开</a>
+								</p>
+							</div>
+						`;
+					} else {
+						const size = response.headers.get("Content-Length");
+						if (resultContainer) resultContainer.innerHTML = `
+							<div style="padding: 20px; text-align: center;">
+								<p style="font-size: 48px; margin-bottom: 10px;">✅</p>
+								<p><strong>文件获取成功</strong></p>
+								<p>类型: ${contentType || "未知"}</p>
+								${size ? `<p>大小: ${(size / 1024).toFixed(2)} KB</p>` : ""}
+								<p style="margin-top: 15px;">
+									<a href="${fullUrl}" target="_blank" class="docs-link" style="font-size: 16px;">在新窗口打开/下载</a>
+								</p>
+							</div>
+						`;
+					}
+
+					if (wrapper) wrapper.style.display = "block";
+				} catch (error) {
+					if (resultContainer) resultContainer.innerHTML = "";
+					if (errorMessage) {
+						errorMessage.textContent = `错误: ${error.message}`;
+						errorMessage.style.display = "block";
+					}
+					if (wrapper) wrapper.style.display = "block";
 				}
 			}
 		</script>

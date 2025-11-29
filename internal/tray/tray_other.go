@@ -2,11 +2,32 @@
 
 package tray
 
-type noopController struct{}
+import (
+	"os"
+	"os/signal"
+	"syscall"
+)
 
-func (noopController) Stop() {}
+var stopChan = make(chan struct{})
 
-// Start is a no-op on platforms without a system tray implementation.
-func Start(opts Options) (Controller, error) {
-	return noopController{}, nil
+func Run(opts Options) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case <-c:
+	case <-stopChan:
+	}
+
+	if opts.OnQuit != nil {
+		opts.OnQuit()
+	}
+}
+
+func Stop() {
+	select {
+	case <-stopChan:
+	default:
+		close(stopChan)
+	}
 }

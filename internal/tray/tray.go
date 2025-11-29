@@ -6,8 +6,3 @@ type Options struct {
 	OnOpen  func()
 	OnQuit  func()
 }
-
-// Controller allows callers to stop the tray icon when shutting down.
-type Controller interface {
-	Stop()
-}

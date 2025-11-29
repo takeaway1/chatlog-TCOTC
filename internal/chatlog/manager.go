@@ -51,8 +51,9 @@ type Manager struct {
 	wechat *wechat.Service
 
 	// Terminal UI
-	app      *App
-	trayCtrl tray.Controller
+	app *App
+
+	cleanupDoneCh chan struct{}
 
 	options RunOptions
 
@@ -72,7 +73,8 @@ func New() *Manager {
 			AutoOpenBrowser:    true,
 			AutoOpenBrowserSet: true,
 		},
-		shutdownCh: make(chan struct{}),
+		shutdownCh:    make(chan struct{}),
+		cleanupDoneCh: make(chan struct{}),
 	}
 }
 
@@ -132,27 +134,23 @@ func (m *Manager) Run(configPath string) error {
 		}
 	}
 
-	if runtime.GOOS == "windows" {
-		ctrl, err := tray.Start(tray.Options{
-			Tooltip: "Chatlog",
-			OnOpen: func() {
-				if next := m.webInterfaceURL(); next != "" {
-					m.launchBrowser(next)
-				}
-			},
-			OnQuit: func() {
-				m.requestShutdown("tray menu exit")
-			},
-		})
-		if err != nil {
-			log.Warn().Err(err).Msg("failed to start system tray icon")
-		} else {
-			m.trayCtrl = ctrl
-		}
-	}
-
 	log.Info().Msg("Chatlog is running in headless mode. Press Ctrl+C to exit.")
-	m.waitForShutdown()
+
+	go m.waitForShutdown()
+
+	tray.Run(tray.Options{
+		Tooltip: "Chatlog",
+		OnOpen: func() {
+			if next := m.webInterfaceURL(); next != "" {
+				m.launchBrowser(next)
+			}
+		},
+		OnQuit: func() {
+			m.requestShutdown("tray menu exit")
+		},
+	})
+
+	<-m.cleanupDoneCh
 	return nil
 }
 
@@ -210,6 +208,7 @@ func (m *Manager) waitForShutdown() {
 	}
 
 	log.Info().Msg("Shutdown complete")
+	close(m.cleanupDoneCh)
 }
 
 func (m *Manager) requestShutdown(reason string) {
@@ -220,11 +219,7 @@ func (m *Manager) requestShutdown(reason string) {
 }
 
 func (m *Manager) stopTray() {
-	if m.trayCtrl == nil {
-		return
-	}
-	m.trayCtrl.Stop()
-	m.trayCtrl = nil
+	tray.Stop()
 }
 
 func (m *Manager) startInitialDecryptWatcher() {
