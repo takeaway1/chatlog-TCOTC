@@ -104,6 +104,7 @@ dockers:
       - chatlog-builds
     image_templates:
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .Tag }}-amd64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .Tag }}-{{ .ShortCommit }}-amd64"
     dockerfile: Dockerfile
     extra_files:
       - script/docker-entrypoint.sh
