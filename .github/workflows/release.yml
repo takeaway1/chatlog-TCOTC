@@ -30,6 +30,13 @@ jobs:
       - name: Fix git permissions
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Setup Nightly Tag
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git tag -f nightly
+          git push origin nightly --force
+
       - name: Install UPX
         uses: crazy-max/ghaction-upx@v3
         with:

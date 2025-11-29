@@ -11,7 +11,7 @@ builds:
   - id: chatlog-builds
     binary: chatlog
     ldflags:
-      - -s -w -X {{ .Env.GITHUB_REPOSITORY }}/pkg/version.Version={{.Version}}
+      - -s -w -X {{ .Env.GITHUB_REPOSITORY }}/pkg/version.Version={{.Version}}-{{.ShortCommit}}
     env:
       - CGO_ENABLED=1
     tags:
@@ -124,6 +124,7 @@ dockers:
       - chatlog-builds
     image_templates:
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .Tag }}-arm64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .Tag }}-{{ .ShortCommit }}-arm64"
     dockerfile: Dockerfile
     extra_files:
       - script/docker-entrypoint.sh
@@ -146,6 +147,7 @@ dockers:
       - chatlog-builds
     image_templates:
       - "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:{{ .Tag }}-amd64"
+      - "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:{{ .Tag }}-{{ .ShortCommit }}-amd64"
     dockerfile: Dockerfile
     extra_files:
       - script/docker-entrypoint.sh
@@ -169,6 +171,7 @@ dockers:
       - chatlog-builds
     image_templates:
       - "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:{{ .Tag }}-arm64"
+      - "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:{{ .Tag }}-{{ .ShortCommit }}-arm64"
     dockerfile: Dockerfile
     extra_files:
       - script/docker-entrypoint.sh
@@ -195,6 +198,11 @@ docker_manifests:
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .Tag }}-amd64"
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .Tag }}-arm64"
 
+  - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .ShortCommit }}"
+    image_templates:
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .Tag }}-{{ .ShortCommit }}-amd64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .Tag }}-{{ .ShortCommit }}-arm64"
+
   - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:latest"
     image_templates:
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName | tolower }}:{{ .Tag }}-amd64"
@@ -206,6 +214,12 @@ docker_manifests:
     image_templates:
       - "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:{{ .Tag }}-amd64"
       - "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:{{ .Tag }}-arm64"
+    skip_push: auto
+
+  - name_template: "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:{{ .ShortCommit }}"
+    image_templates:
+      - "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:{{ .Tag }}-{{ .ShortCommit }}-amd64"
+      - "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:{{ .Tag }}-{{ .ShortCommit }}-arm64"
     skip_push: auto
 
   - name_template: "{{ .Env.DOCKERHUB_USERNAME }}/{{ .ProjectName | tolower }}:latest"
