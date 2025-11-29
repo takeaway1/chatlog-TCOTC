@@ -3,9 +3,7 @@
 package tray
 
 import (
-	"errors"
-	"os"
-	"path/filepath"
+	_ "embed"
 	"sync"
 
 	"github.com/getlantern/systray"
@@ -28,42 +26,11 @@ func (c *controller) Stop() {
 	<-c.stopped
 }
 
-var (
-	iconInit sync.Once
-	iconData []byte
-	iconErr  error
-)
+//go:embed icon.ico
+var iconData []byte
 
 func trayIcon() ([]byte, error) {
-	iconInit.Do(func() {
-		iconData, iconErr = loadIcon()
-	})
-	return iconData, iconErr
-}
-
-func loadIcon() ([]byte, error) {
-	const iconName = "icon.ico"
-
-	paths := []string{
-		iconName,
-	}
-
-	exePath, err := os.Executable()
-	if err == nil {
-		exeDir := filepath.Dir(exePath)
-		paths = append(paths, filepath.Join(exeDir, iconName))
-	}
-
-	var errs error
-	for _, candidate := range paths {
-		if data, readErr := os.ReadFile(candidate); readErr == nil {
-			return data, nil
-		} else {
-			errs = errors.Join(errs, readErr)
-		}
-	}
-
-	return nil, errs
+	return iconData, nil
 }
 
 // Start launches the Windows notification area icon.
