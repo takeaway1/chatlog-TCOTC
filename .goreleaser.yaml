@@ -3,6 +3,12 @@ version: 2
 
 project_name: chatlog-tcotc
 
+nightly:
+  name_template: "Nightly Build"
+  tag_name: nightly
+  publish: true
+  keep_single_release: true
+
 before:
   hooks:
     - go mod tidy
