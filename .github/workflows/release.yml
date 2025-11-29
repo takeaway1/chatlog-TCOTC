@@ -35,7 +35,7 @@ jobs:
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
           git tag -f v0.0.1-nightly
-          git push originv0.0.1-nightly --force
+          git push origin v0.0.1-nightly --force
 
       - name: Install UPX
         uses: crazy-max/ghaction-upx@v3
