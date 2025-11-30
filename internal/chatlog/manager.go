@@ -137,7 +137,7 @@ func (m *Manager) Run(configPath string) error {
 
 	log.Info().Msg("Chatlog is running in headless mode. Press Ctrl+C to exit.")
 
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
 		ctrl, err := tray.Start(tray.Options{
 			Tooltip: "Chatlog",
 			OnOpen: func() {
