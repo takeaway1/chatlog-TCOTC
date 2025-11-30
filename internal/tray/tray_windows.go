@@ -3,9 +3,7 @@
 package tray
 
 import (
-	"errors"
-	"os"
-	"path/filepath"
+	_ "embed"
 	"sync"
 
 	"github.com/getlantern/systray"
@@ -18,36 +16,9 @@ var (
 	iconErr  error
 )
 
+
 func trayIcon() ([]byte, error) {
-	iconInit.Do(func() {
-		iconData, iconErr = loadIcon()
-	})
-	return iconData, iconErr
-}
-
-func loadIcon() ([]byte, error) {
-	const iconName = "icon.ico"
-
-	paths := []string{
-		iconName,
-	}
-
-	exePath, err := os.Executable()
-	if err == nil {
-		exeDir := filepath.Dir(exePath)
-		paths = append(paths, filepath.Join(exeDir, iconName))
-	}
-
-	var errs error
-	for _, candidate := range paths {
-		if data, readErr := os.ReadFile(candidate); readErr == nil {
-			return data, nil
-		} else {
-			errs = errors.Join(errs, readErr)
-		}
-	}
-
-	return nil, errs
+	return iconData, nil
 }
 
 // Run starts the system tray. This function blocks until Stop is called or the Quit menu item is clicked.
