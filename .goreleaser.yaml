@@ -8,8 +8,8 @@ project_name: chatlog-tcotc
 before:
   hooks:
     - go mod tidy
-    - go run github.com/akavel/rsrc/cmd/rsrc@latest -arch amd64 -ico internal/tray/icon.ico -o internal/tray/rsrc_windows_amd64.syso
-    - go run github.com/akavel/rsrc/cmd/rsrc@latest -arch arm64 -ico internal/tray/icon.ico -o internal/tray/rsrc_windows_arm64.syso
+    - go run github.com/akavel/rsrc@latest -arch amd64 -ico internal/tray/icon.ico -o internal/tray/rsrc_windows_amd64.syso
+    - go run github.com/akavel/rsrc@latest -arch arm64 -ico internal/tray/icon.ico -o internal/tray/rsrc_windows_arm64.syso
 
 builds:
   - id: chatlog-builds
