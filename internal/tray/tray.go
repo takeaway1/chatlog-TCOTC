@@ -7,7 +7,12 @@ type Options struct {
 	OnQuit  func()
 }
 
-// Controller allows callers to stop the tray icon when shutting down.
-type Controller interface {
-	Stop()
+// Run starts the system tray.
+func Run(opts Options) {
+	run(opts)
+}
+
+// Stop stops the system tray.
+func Stop() {
+	stop()
 }

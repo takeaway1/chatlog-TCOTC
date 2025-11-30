@@ -51,8 +51,7 @@ type Manager struct {
 	wechat *wechat.Service
 
 	// Terminal UI
-	app      *App
-	trayCtrl tray.Controller
+	app *App
 
 	cleanupDoneCh chan struct{}
 
@@ -138,7 +137,8 @@ func (m *Manager) Run(configPath string) error {
 	log.Info().Msg("Chatlog is running in headless mode. Press Ctrl+C to exit.")
 
 	if runtime.GOOS == "windows" {
-		ctrl, err := tray.Start(tray.Options{
+		go m.waitForShutdown()
+		tray.Run(tray.Options{
 			Tooltip: "Chatlog",
 			OnOpen: func() {
 				if next := m.webInterfaceURL(); next != "" {
@@ -149,14 +149,10 @@ func (m *Manager) Run(configPath string) error {
 				m.requestShutdown("tray menu exit")
 			},
 		})
-		if err != nil {
-			log.Warn().Err(err).Msg("failed to start system tray icon")
-		} else {
-			m.trayCtrl = ctrl
-		}
+	} else {
+		m.waitForShutdown()
 	}
 
-	m.waitForShutdown()
 	return nil
 }
 
@@ -225,10 +221,7 @@ func (m *Manager) requestShutdown(reason string) {
 }
 
 func (m *Manager) stopTray() {
-	if m.trayCtrl != nil {
-		m.trayCtrl.Stop()
-		m.trayCtrl = nil
-	}
+	tray.Stop()
 }
 
 func (m *Manager) startInitialDecryptWatcher() {
