@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -50,7 +51,8 @@ type Manager struct {
 	wechat *wechat.Service
 
 	// Terminal UI
-	app *App
+	app      *App
+	trayCtrl tray.Controller
 
 	cleanupDoneCh chan struct{}
 
@@ -135,21 +137,26 @@ func (m *Manager) Run(configPath string) error {
 
 	log.Info().Msg("Chatlog is running in headless mode. Press Ctrl+C to exit.")
 
-	go m.waitForShutdown()
+	if runtime.GOOS == "windows" {
+		ctrl, err := tray.Start(tray.Options{
+			Tooltip: "Chatlog",
+			OnOpen: func() {
+				if next := m.webInterfaceURL(); next != "" {
+					m.launchBrowser(next)
+				}
+			},
+			OnQuit: func() {
+				m.requestShutdown("tray menu exit")
+			},
+		})
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to start system tray icon")
+		} else {
+			m.trayCtrl = ctrl
+		}
+	}
 
-	tray.Run(tray.Options{
-		Tooltip: "Chatlog",
-		OnOpen: func() {
-			if next := m.webInterfaceURL(); next != "" {
-				m.launchBrowser(next)
-			}
-		},
-		OnQuit: func() {
-			m.requestShutdown("tray menu exit")
-		},
-	})
-
-	<-m.cleanupDoneCh
+	m.waitForShutdown()
 	return nil
 }
 
@@ -218,7 +225,10 @@ func (m *Manager) requestShutdown(reason string) {
 }
 
 func (m *Manager) stopTray() {
-	tray.Stop()
+	if m.trayCtrl != nil {
+		m.trayCtrl.Stop()
+		m.trayCtrl = nil
+	}
 }
 
 func (m *Manager) startInitialDecryptWatcher() {
