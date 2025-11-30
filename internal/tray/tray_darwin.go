@@ -5,7 +5,7 @@ package tray
 import (
 	"sync"
 
-	"github.com/getlantern/systray"
+	"fyne.io/systray"
 )
 
 type controller struct {
@@ -41,6 +41,11 @@ func Start(opts Options) (Controller, error) {
 }
 
 func setupTray(opts Options, ctrl *controller) {
+	// macOS 菜单栏图标通常使用模板图像（Template Image），即只有 alpha 通道的黑白图像
+	// 这里我们暂时不设置图标，只设置标题，或者后续可以添加专门的 macOS 图标
+	// systray.SetIcon(data)
+
+	// 设置标题，这在 macOS 上很常见
 	systray.SetTitle("Chatlog")
 
 	tip := opts.Tooltip

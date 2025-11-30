@@ -6,7 +6,7 @@ import (
 	_ "embed"
 	"sync"
 
-	"github.com/getlantern/systray"
+	"fyne.io/systray"
 	"github.com/rs/zerolog/log"
 )
 
