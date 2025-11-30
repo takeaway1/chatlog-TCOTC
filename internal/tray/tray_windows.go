@@ -34,7 +34,7 @@ func trayIcon() ([]byte, error) {
 }
 
 // Start launches the Windows notification area icon.
-func Start(opts Options) (Controller, error) {
+func Run(opts Options) (Controller, error) {
 	ctrl := newController()
 	ready := make(chan struct{})
 
