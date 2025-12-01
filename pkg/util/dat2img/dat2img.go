@@ -197,6 +197,10 @@ func SetAesKey(key string) {
 	if key == "" {
 		return
 	}
+	if len(key) == 16 {
+		V4Format2.AesKey = []byte(key)
+		return
+	}
 	decoded, err := hex.DecodeString(key)
 	if err != nil {
 		log.Error().Err(err).Msg("invalid aes key")
