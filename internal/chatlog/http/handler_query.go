@@ -117,7 +117,7 @@ func (s *Service) handleSearch(c *gin.Context) {
 		resp = &model.SearchResponse{Hits: []*model.SearchHit{}, Limit: limit, Offset: offset}
 	}
 
-	log.Debug().Int("hits", len(resp.Hits)).Int64("total", resp.Total).Msg("search completed")
+	log.Debug().Int("hits", len(resp.Hits)).Int("total", resp.Total).Msg("search completed")
 
 	resp.Query = req.Query
 	resp.Talker = req.Talker
