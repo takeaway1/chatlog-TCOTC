@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 
 	"github.com/sjzar/chatlog/internal/model"
 )
@@ -161,8 +162,10 @@ type groupAggregate struct {
 
 // handleDashboard 处理 Dashboard 数据请求
 func (s *Service) handleDashboard(c *gin.Context) {
+	log.Debug().Msg("handling dashboard request")
 	resp, err := s.buildDashboardData()
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to build dashboard data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build dashboard", "detail": err.Error()})
 		return
 	}
@@ -188,6 +191,7 @@ func (s *Service) handleDashboard(c *gin.Context) {
 
 // buildDashboardData 构建 Dashboard 数据
 func (s *Service) buildDashboardData() (*Dashboard, error) {
+	log.Debug().Msg("building dashboard data")
 	// 获取基础统计数据
 	gstats, err := s.db.GetDB().GlobalMessageStats()
 	if err != nil {
@@ -233,11 +237,13 @@ func (s *Service) calculateStorageSizes() (dbSize, dirSize int64) {
 	}
 	dirSizeBytes := safeDirSize(dataDir)
 	dbSizeBytes := estimateDBSize(workDir)
+	log.Debug().Int64("dbSizeBytes", dbSizeBytes).Int64("dirSizeBytes", dirSizeBytes).Msg("calculated storage sizes")
 	return dbSizeBytes, dirSizeBytes
 }
 
 // extractCurrentUser 提取当前用户信息
 func (s *Service) extractCurrentUser() (currentUser, accountID string) {
+	log.Debug().Msg("extracting current user")
 	dataDir := s.conf.GetDataDir()
 	workDir := dataDir
 	if s.db != nil {
@@ -294,11 +300,13 @@ func (s *Service) extractCurrentUser() (currentUser, accountID string) {
 		}
 	}
 
+	log.Debug().Str("user", currentUser).Str("accountID", accountID).Msg("extracted current user")
 	return
 }
 
 // buildMessageTypeStats 构建消息类型统计
 func (s *Service) buildMessageTypeStats(gstats *model.GlobalMessageStats) map[string]int64 {
+	log.Debug().Int64("total", gstats.Total).Msg("building message type stats")
 	msgTypes := map[string]int64{
 		"文本消息":    0,
 		"图片消息":    0,
@@ -327,6 +335,7 @@ func (s *Service) buildMessageTypeStats(gstats *model.GlobalMessageStats) map[st
 
 // buildGroupAggregates 构建群组聚合数据
 func (s *Service) buildGroupAggregates(groupCounts map[string]int64) ([]groupAggregate, int) {
+	log.Debug().Int("count", len(groupCounts)).Msg("building group aggregates")
 	groupAggs := make([]groupAggregate, 0)
 	activeGroups := 0
 
@@ -703,6 +712,7 @@ func (s *Service) buildRelationshipNetwork(accountID string) []RelationshipNode 
 
 // saveDashboard 保存 Dashboard 数据到文件
 func (s *Service) saveDashboard(resp *Dashboard) {
+	log.Debug().Msg("saving dashboard data")
 	baseDir := ""
 	if s.db != nil {
 		if wd := strings.TrimSpace(s.db.GetWorkDir()); wd != "" {
@@ -724,7 +734,11 @@ func (s *Service) saveDashboard(resp *Dashboard) {
 		if err := os.MkdirAll(baseDir, 0o755); err == nil {
 			if b, err := json.Marshal(resp); err == nil {
 				path := filepath.Join(baseDir, "dashboard.json")
-				_ = os.WriteFile(path, b, 0o644)
+				if err := os.WriteFile(path, b, 0o644); err != nil {
+					log.Debug().Err(err).Str("path", path).Msg("failed to save dashboard file")
+				} else {
+					log.Debug().Str("path", path).Msg("dashboard saved")
+				}
 			}
 		}
 	}

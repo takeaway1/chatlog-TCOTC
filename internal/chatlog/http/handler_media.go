@@ -23,6 +23,7 @@ import (
 // handleMedia 处理媒体文件请求
 func (s *Service) handleMedia(c *gin.Context, _type string) {
 	key := strings.TrimPrefix(c.Param("key"), "/")
+	log.Debug().Str("type", _type).Str("key", key).Msg("handling media request")
 	if key == "" {
 		errors.Err(c, errors.InvalidArg(key))
 		return
@@ -36,8 +37,10 @@ func (s *Service) handleMedia(c *gin.Context, _type string) {
 
 	var _err error
 	for _, k := range keys {
+		log.Debug().Str("key", k).Msg("processing media key")
 		if strings.Contains(k, "/") {
 			if absolutePath, err := s.findPath(_type, k); err == nil {
+				log.Debug().Str("path", absolutePath).Msg("found absolute path for media")
 				c.Redirect(http.StatusFound, "/data/"+absolutePath)
 				return
 			}
@@ -45,11 +48,13 @@ func (s *Service) handleMedia(c *gin.Context, _type string) {
 		
 		media, err := s.db.GetMedia(_type, k)
 		if err != nil {
+			log.Debug().Err(err).Str("key", k).Msg("failed to get media from db")
 			_err = err
 			continue
 		}
 		
 		if c.Query("info") != "" {
+			log.Debug().Str("key", k).Msg("returning media info")
 			c.JSON(http.StatusOK, media)
 			return
 		}
@@ -64,6 +69,7 @@ func (s *Service) handleMedia(c *gin.Context, _type string) {
 			s.HandleVoice(c, media.Data)
 			return
 		default:
+			log.Debug().Str("path", media.Path).Msg("redirecting to media path")
 			c.Redirect(http.StatusFound, "/data/"+media.Path)
 			return
 		}
@@ -77,6 +83,7 @@ func (s *Service) handleMedia(c *gin.Context, _type string) {
 
 // handleVoiceTranscription 处理语音转写请求
 func (s *Service) handleVoiceTranscription(c *gin.Context, key string, media *model.Media) {
+	log.Debug().Str("key", key).Msg("handling voice transcription")
 	if s.speechTranscriber == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "speech transcription not enabled"})
 		return
@@ -143,6 +150,7 @@ func (s *Service) handleVoiceTranscription(c *gin.Context, key string, media *mo
 
 // findPath 查找媒体文件路径
 func (s *Service) findPath(_type string, key string) (string, error) {
+	log.Debug().Str("type", _type).Str("key", key).Msg("finding path for media")
 	absolutePath := filepath.Join(s.conf.GetDataDir(), key)
 	if _, err := os.Stat(absolutePath); err == nil {
 		return key, nil
@@ -169,6 +177,7 @@ func (s *Service) findPath(_type string, key string) (string, error) {
 // handleMediaData 处理媒体数据请求
 func (s *Service) handleMediaData(c *gin.Context) {
 	relativePath := filepath.Clean(c.Param("path"))
+	log.Debug().Str("path", relativePath).Msg("handling media data request")
 	absolutePath := filepath.Join(s.conf.GetDataDir(), relativePath)
 
 	if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
@@ -189,6 +198,7 @@ func (s *Service) handleMediaData(c *gin.Context) {
 
 // HandleDatFile 处理 DAT 文件
 func (s *Service) HandleDatFile(c *gin.Context, path string) {
+	log.Debug().Str("path", path).Msg("handling DAT file")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		errors.Err(c, err)
@@ -197,9 +207,11 @@ func (s *Service) HandleDatFile(c *gin.Context, path string) {
 	
 	out, ext, err := dat2img.Dat2Image(b)
 	if err != nil {
+		log.Debug().Err(err).Str("path", path).Msg("failed to convert DAT file")
 		c.File(path)
 		return
 	}
+	log.Debug().Str("ext", ext).Msg("DAT file converted")
 
 	switch ext {
 	case "jpg", "jpeg":
@@ -219,11 +231,14 @@ func (s *Service) HandleDatFile(c *gin.Context, path string) {
 
 // HandleVoice 处理语音文件
 func (s *Service) HandleVoice(c *gin.Context, data []byte) {
+	log.Debug().Int("size", len(data)).Msg("handling voice data")
 	out, err := silk.Silk2MP3(data)
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to convert silk to mp3")
 		c.Data(http.StatusOK, "audio/silk", data)
 		return
 	}
+	log.Debug().Msg("voice converted to mp3")
 	c.Data(http.StatusOK, "audio/mp3", out)
 }
 

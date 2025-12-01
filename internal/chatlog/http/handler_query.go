@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 
 	"github.com/sjzar/chatlog/internal/errors"
 	"github.com/sjzar/chatlog/internal/model"
@@ -24,6 +25,7 @@ type grouped struct {
 
 // handleSearch 处理搜索请求
 func (s *Service) handleSearch(c *gin.Context) {
+	log.Debug().Msg("handling search request")
 	params := struct {
 		Query  string `form:"q"`
 		Talker string `form:"talker"`
@@ -107,12 +109,15 @@ func (s *Service) handleSearch(c *gin.Context) {
 
 	resp, err := s.db.SearchMessages(req)
 	if err != nil {
+		log.Debug().Err(err).Msg("search messages failed")
 		errors.Err(c, err)
 		return
 	}
 	if resp == nil {
 		resp = &model.SearchResponse{Hits: []*model.SearchHit{}, Limit: limit, Offset: offset}
 	}
+
+	log.Debug().Int("hits", len(resp.Hits)).Int64("total", resp.Total).Msg("search completed")
 
 	resp.Query = req.Query
 	resp.Talker = req.Talker
@@ -310,6 +315,7 @@ func (s *Service) renderSearchCSV(c *gin.Context, resp *model.SearchResponse) {
 
 // handleChatlog 处理聊天记录请求
 func (s *Service) handleChatlog(c *gin.Context) {
+	log.Debug().Msg("handling chatlog request")
 	q := struct {
 		Time    string `form:"time"`
 		Talker  string `form:"talker"`
@@ -355,6 +361,7 @@ func (s *Service) handleChatlog(c *gin.Context) {
 
 // handleChatlogGrouped 处理分组聊天记录
 func (s *Service) handleChatlogGrouped(c *gin.Context, start, end time.Time, sender, keyword, format string) {
+	log.Debug().Time("start", start).Time("end", end).Msg("handling chatlog grouped")
 	sessionsResp, err := s.db.GetSessions("", 0, 0)
 	if err != nil {
 		errors.Err(c, err)
@@ -467,6 +474,7 @@ func (s *Service) renderChatlogGroupedText(c *gin.Context, groups []*grouped) {
 
 // handleChatlogSingle 处理单会话聊天记录
 func (s *Service) handleChatlogSingle(c *gin.Context, start, end time.Time, talker, sender, keyword string, limit, offset int, format string) {
+	log.Debug().Str("talker", talker).Time("start", start).Time("end", end).Msg("handling chatlog single")
 	messages, err := s.db.GetMessages(start, end, talker, sender, keyword, limit, offset)
 	if err != nil {
 		errors.Err(c, err)
@@ -547,6 +555,7 @@ func (s *Service) renderChatlogSingleText(c *gin.Context, messages []*model.Mess
 
 // handleContacts 处理联系人查询
 func (s *Service) handleContacts(c *gin.Context) {
+	log.Debug().Msg("handling contacts request")
 	q := struct {
 		Keyword string `form:"keyword"`
 		Limit   int    `form:"limit"`
@@ -651,6 +660,7 @@ func (s *Service) composeAvatarURL(username string) string {
 func (s *Service) handleAvatar(c *gin.Context) {
 	username := c.Param("username")
 	size := c.Query("size")
+	log.Debug().Str("username", username).Str("size", size).Msg("handling avatar request")
 	
 	avatar, err := s.db.GetAvatar(username, size)
 	if err != nil {
@@ -676,6 +686,7 @@ func (s *Service) handleAvatar(c *gin.Context) {
 
 // handleChatRooms 处理聊天室查询
 func (s *Service) handleChatRooms(c *gin.Context) {
+	log.Debug().Msg("handling chatrooms request")
 	q := struct {
 		Keyword string `form:"keyword"`
 		Limit   int    `form:"limit"`
@@ -727,6 +738,7 @@ func (s *Service) renderChatRoomsCSV(c *gin.Context, items []*model.ChatRoom) {
 
 // handleSessions 处理会话查询
 func (s *Service) handleSessions(c *gin.Context) {
+	log.Debug().Msg("handling sessions request")
 	q := struct {
 		Keyword string `form:"keyword"`
 		Limit   int    `form:"limit"`
@@ -783,6 +795,7 @@ func (s *Service) renderSessionsCSV(c *gin.Context, items []*model.Session) {
 
 // handleDiary 处理日记查询（返回指定日期内"我"参与的消息，按 talker 分组）
 func (s *Service) handleDiary(c *gin.Context) {
+	log.Debug().Msg("handling diary request")
 	q := struct {
 		Date   string `form:"date"`
 		Talker string `form:"talker"`

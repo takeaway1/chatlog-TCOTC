@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"io"
 	"sync"
+
+	"github.com/rs/zerolog/log"
 )
 
 // 模板缓存
@@ -17,8 +19,10 @@ var (
 
 // loadTemplate 从嵌入的文件系统加载模板
 func loadTemplate(name string) (string, error) {
+	log.Debug().Str("template", name).Msg("loading template")
 	templateCacheLock.RLock()
 	if content, ok := templateCache[name]; ok {
+		log.Debug().Str("template", name).Msg("template found in cache")
 		templateCacheLock.RUnlock()
 		return content, nil
 	}
@@ -27,6 +31,7 @@ func loadTemplate(name string) (string, error) {
 	// 读取模板文件
 	data, err := EFS.ReadFile("static/templates/" + name)
 	if err != nil {
+		log.Debug().Err(err).Str("template", name).Msg("failed to read template file")
 		return "", err
 	}
 
@@ -37,6 +42,7 @@ func loadTemplate(name string) (string, error) {
 	templateCache[name] = content
 	templateCacheLock.Unlock()
 
+	log.Debug().Str("template", name).Msg("template loaded and cached")
 	return content, nil
 }
 
@@ -58,6 +64,7 @@ func getPreviewHTMLSnippet() string {
 
 // writeChatlogHTMLHeader 写入聊天记录 HTML 头部
 func writeChatlogHTMLHeader(w io.Writer, title string) error {
+	log.Debug().Str("title", title).Msg("writing chatlog HTML header")
 	tmplContent, err := loadTemplate("chatlog-head.html")
 	if err != nil {
 		return err
@@ -65,23 +72,32 @@ func writeChatlogHTMLHeader(w io.Writer, title string) error {
 
 	tmpl, err := template.New("chatlog-head").Parse(tmplContent)
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to parse chatlog-head template")
 		return err
 	}
 
-	return tmpl.Execute(w, map[string]interface{}{
+	if err := tmpl.Execute(w, map[string]interface{}{
 		"Title": title,
-	})
+	}); err != nil {
+		log.Debug().Err(err).Msg("failed to execute chatlog-head template")
+		return err
+	}
+	return nil
 }
 
 // writeHTMLFooter 写入 HTML 页脚（包含预览组件）
 func writeHTMLFooter(w io.Writer) error {
+	log.Debug().Msg("writing HTML footer")
 	snippet := getPreviewHTMLSnippet()
-	_, err := io.WriteString(w, snippet)
-	if err != nil {
+	if _, err := io.WriteString(w, snippet); err != nil {
+		log.Debug().Err(err).Msg("failed to write preview snippet")
 		return err
 	}
-	_, err = io.WriteString(w, "</body></html>")
-	return err
+	if _, err := io.WriteString(w, "</body></html>"); err != nil {
+		log.Debug().Err(err).Msg("failed to write footer close tags")
+		return err
+	}
+	return nil
 }
 
 // getPreviewSnippet 获取预览片段（懒加载，线程安全）
@@ -94,9 +110,11 @@ func getPreviewSnippet() string {
 
 // writeChatlogHTMLHeaderCompat 兼容旧版本的函数签名
 func writeChatlogHTMLHeaderCompat(w io.Writer, title string) {
+	log.Debug().Str("title", title).Msg("writing chatlog HTML header (compat)")
 	var buf bytes.Buffer
 	err := writeChatlogHTMLHeader(&buf, title)
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to write chatlog header, using fallback")
 		// 如果模板加载失败，使用硬编码的简单版本
 		buf.WriteString("<html><head><meta charset=\"utf-8\"><title>")
 		buf.WriteString(template.HTMLEscapeString(title))
