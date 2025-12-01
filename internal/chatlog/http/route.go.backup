@@ -1,15 +1,31 @@
 package http
 
 import (
+	"context"
 	"embed"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
 	"io/fs"
+	"math"
 	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
+
+	"github.com/sjzar/chatlog/internal/errors"
+	"github.com/sjzar/chatlog/internal/model"
+	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/sjzar/chatlog/pkg/util/dat2img"
+	"github.com/sjzar/chatlog/pkg/util/silk"
 )
 
 //go:embed static
@@ -136,12 +152,10 @@ a.media{color:#2c3e50;text-decoration:none;border-bottom:1px dashed rgba(44,62,8
 a.media:hover{color:#0f4c81;}
 </style></head><body>`
 
-// writeChatlogHTMLHeader 写入聊天记录 HTML 头部
 func writeChatlogHTMLHeader(w io.Writer, title string) {
 	fmt.Fprintf(w, chatlogHTMLHeadTemplate, template.HTMLEscapeString(title))
 }
 
-// initRouter 初始化所有路由
 func (s *Service) initRouter() {
 	s.initBaseRouter()
 	s.initMediaRouter()
@@ -149,7 +163,6 @@ func (s *Service) initRouter() {
 	s.initMCPRouter()
 }
 
-// initBaseRouter 初始化基础路由（静态文件、首页等）
 func (s *Service) initBaseRouter() {
 	staticDir, _ := fs.Sub(EFS, "static")
 	s.router.StaticFS("/static", http.FS(staticDir))
@@ -167,7 +180,6 @@ func (s *Service) initBaseRouter() {
 	})
 }
 
-// initMediaRouter 初始化媒体路由（图片、视频、文件、语音等）
 func (s *Service) initMediaRouter() {
 	s.router.GET("/image/*key", func(c *gin.Context) { s.handleMedia(c, "image") })
 	s.router.GET("/video/*key", func(c *gin.Context) { s.handleMedia(c, "video") })
@@ -177,7 +189,6 @@ func (s *Service) initMediaRouter() {
 	s.router.GET("/avatar/:username", s.handleAvatar)
 }
 
-// initAPIRouter 初始化 API 路由
 func (s *Service) initAPIRouter() {
 	api := s.router.Group("/api/v1")
 	{
@@ -203,9 +214,428 @@ func (s *Service) initAPIRouter() {
 	}
 }
 
-// initMCPRouter 初始化 MCP 路由
 func (s *Service) initMCPRouter() {
 	s.router.Any("/mcp", func(c *gin.Context) { s.mcpStreamableServer.ServeHTTP(c.Writer, c.Request) })
 	s.router.Any("/sse", func(c *gin.Context) { s.mcpSSEServer.ServeHTTP(c.Writer, c.Request) })
 	s.router.Any("/message", func(c *gin.Context) { s.mcpSSEServer.ServeHTTP(c.Writer, c.Request) })
+}
+
+
+			content = strings.ReplaceAll(content, "\n", "\n") // 让 pre-wrap 生效
+			c.Writer.Write([]byte(`<div class="session-item"><div class="session-head">` + name + `<span class="uname">(` + uname + `)</span><span class="session-time">` + session.NTime.Format("2006-01-02 15:04:05") + `</span></div><div class="session-content">` + content + `</div></div>`))
+		}
+		c.Writer.Write([]byte(`</div>`))
+		c.Writer.Write([]byte(previewHTMLSnippet))
+		c.Writer.Flush()
+		return
+	case "csv":
+		c.Writer.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		c.Writer.Header().Set("Cache-Control", "no-cache")
+		c.Writer.Header().Set("Connection", "keep-alive")
+		c.Writer.Flush()
+
+		c.Writer.WriteString("UserName,NOrder,NickName,Content,NTime\n")
+		for _, session := range sessions.Items {
+			c.Writer.WriteString(fmt.Sprintf("%s,%d,%s,%s,%s\n", session.UserName, session.NOrder, session.NickName, strings.ReplaceAll(session.Content, "\n", "\\n"), session.NTime))
+		}
+		c.Writer.Flush()
+	case "json":
+		// json
+		c.JSON(http.StatusOK, sessions)
+	default:
+		c.Writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		c.Writer.Header().Set("Cache-Control", "no-cache")
+		c.Writer.Header().Set("Connection", "keep-alive")
+		c.Writer.Flush()
+		for _, session := range sessions.Items {
+			c.Writer.WriteString(session.PlainText(120))
+			c.Writer.WriteString("\n")
+		}
+		c.Writer.Flush()
+	}
+}
+
+// handleDiary 返回指定日期内“我”参与的消息（日记），按 talker 分组。
+// GET /api/v1/diary?date=YYYY-MM-DD&format=(html|json|csv|text)
+func (s *Service) handleDiary(c *gin.Context) {
+	q := struct {
+		Date   string `form:"date"`
+		Talker string `form:"talker"`
+		Format string `form:"format"`
+	}{}
+	if err := c.BindQuery(&q); err != nil {
+		errors.Err(c, err)
+		return
+	}
+
+	dateStr := strings.TrimSpace(q.Date)
+	if dateStr == "" {
+		dateStr = time.Now().Format("2006-01-02")
+	}
+
+	parsed, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	if err != nil {
+		errors.Err(c, errors.InvalidArg("date"))
+		return
+	}
+	start := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, parsed.Location())
+	end := start.Add(24*time.Hour - time.Nanosecond)
+
+	startDisplay := start.Format("2006-01-02 15:04:05")
+	endDisplay := end.Format("2006-01-02 15:04:05")
+	heading := fmt.Sprintf("%s 的聊天日记（%s ~ %s）", start.Format("2006-01-02"), startDisplay, endDisplay)
+
+	// 获取会话（可选 talker 过滤）
+	sessionsResp, err := s.db.GetSessions(q.Talker, 0, 0)
+	if err != nil {
+		errors.Err(c, err)
+		return
+	}
+
+	type grouped struct {
+		Talker     string           `json:"talker"`
+		TalkerName string           `json:"talkerName,omitempty"`
+		Messages   []*model.Message `json:"messages"`
+	}
+	groups := make([]*grouped, 0)
+
+	for _, sess := range sessionsResp.Items {
+		msgs, err := s.db.GetMessages(start, end, sess.UserName, "", "", 0, 0)
+		if err != nil || len(msgs) == 0 {
+			continue
+		}
+		hasSelf := false
+		for _, m := range msgs {
+			if m.IsSelf {
+				hasSelf = true
+				break
+			}
+		}
+		if !hasSelf {
+			continue
+		}
+		groups = append(groups, &grouped{Talker: sess.UserName, TalkerName: sess.NickName, Messages: msgs})
+	}
+
+	format := strings.ToLower(strings.TrimSpace(q.Format))
+	if format == "" {
+		format = "json"
+	}
+	switch format {
+	case "html":
+		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		c.Writer.WriteString(`<html><head><meta charset="utf-8"><title>Diary</title><style>body{font-family:Arial,Helvetica,sans-serif;font-size:14px;}details{margin:8px 0;padding:6px 8px;border:1px solid #ddd;border-radius:6px;background:#fafafa;}summary{cursor:pointer;font-weight:600;} .msg{margin:4px 0;padding:4px 6px;border-left:3px solid #2ecc71;background:#fff;} .msg-row{display:flex;gap:8px;align-items:flex-start;} .avatar{width:28px;height:28px;border-radius:6px;object-fit:cover;background:#f2f2f2;border:1px solid #eee;flex:0 0 28px} .msg-content{flex:1;min-width:0} .meta{color:#666;font-size:12px;margin-bottom:2px;} pre{white-space:pre-wrap;word-break:break-word;margin:0;} .sender{color:#27ae60;} .time{color:#16a085;margin-left:6px;} a.media{color:#2c3e50;text-decoration:none;} a.media:hover{text-decoration:underline;}</style></head><body>`)
+		c.Writer.WriteString(fmt.Sprintf("<h2>%s</h2>", template.HTMLEscapeString(heading)))
+		for _, g := range groups {
+			title := g.Talker
+			if g.TalkerName != "" {
+				title = fmt.Sprintf("%s (%s)", g.TalkerName, g.Talker)
+			}
+			c.Writer.WriteString("<details open><summary>" + template.HTMLEscapeString(title) + fmt.Sprintf(" - %d 条消息</summary>", len(g.Messages)))
+			for _, m := range g.Messages {
+				m.SetContent("host", c.Request.Host)
+				senderDisplay := m.Sender
+				if m.IsSelf {
+					senderDisplay = "我"
+				}
+				if m.SenderName != "" {
+					senderDisplay = template.HTMLEscapeString(m.SenderName) + "(" + template.HTMLEscapeString(senderDisplay) + ")"
+				} else {
+					senderDisplay = template.HTMLEscapeString(senderDisplay)
+				}
+				aurl := template.HTMLEscapeString(s.composeAvatarURL(m.Sender) + "?size=big")
+				c.Writer.WriteString("<div class=\"msg\"><div class=\"msg-row\"><img class=\"avatar\" src=\"" + aurl + "\" loading=\"lazy\" alt=\"avatar\" onerror=\"this.style.visibility='hidden'\"/><div class=\"msg-content\"><div class=\"meta\"><span class=\"sender\">" + senderDisplay + "</span><span class=\"time\">" + m.Time.Format("2006-01-02 15:04:05") + "</span></div><pre>" + messageHTMLPlaceholder(m) + "</pre></div></div></div>")
+			}
+			c.Writer.WriteString("</details>")
+		}
+		c.Writer.WriteString(previewHTMLSnippet)
+		c.Writer.WriteString("</body></html>")
+	case "json":
+		c.JSON(http.StatusOK, groups)
+	case "csv":
+		c.Writer.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		c.Writer.Header().Set("Cache-Control", "no-cache")
+		c.Writer.Header().Set("Connection", "keep-alive")
+		c.Writer.Flush()
+		writer := csv.NewWriter(c.Writer)
+		writer.Write([]string{"Talker", "TalkerName", "Time", "SenderName", "Sender", "Content"})
+		for _, g := range groups {
+			for _, m := range g.Messages {
+				writer.Write([]string{m.Talker, m.TalkerName, m.Time.Format("2006-01-02 15:04:05"), m.SenderName, m.Sender, m.PlainTextContent()})
+			}
+		}
+		writer.Flush()
+	default:
+		c.Writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		c.Writer.Header().Set("Cache-Control", "no-cache")
+		c.Writer.Header().Set("Connection", "keep-alive")
+		c.Writer.Flush()
+		for _, g := range groups {
+			if g.TalkerName != "" {
+				c.Writer.WriteString(fmt.Sprintf("%s (%s)\n", g.TalkerName, g.Talker))
+			} else {
+				c.Writer.WriteString(g.Talker + "\n")
+			}
+			for _, m := range g.Messages {
+				senderDisplay := m.Sender
+				if m.IsSelf {
+					senderDisplay = "我"
+				}
+				if m.SenderName != "" {
+					senderDisplay = m.SenderName + "(" + senderDisplay + ")"
+				}
+				c.Writer.WriteString(m.Time.Format("2006-01-02 15:04:05"))
+				c.Writer.WriteString(" ")
+				c.Writer.WriteString(senderDisplay)
+				c.Writer.WriteString(" ")
+				c.Writer.WriteString(m.PlainTextContent())
+				c.Writer.WriteString("\n")
+			}
+			c.Writer.WriteString("-----------------------------\n")
+		}
+	}
+}
+
+func (s *Service) handleMedia(c *gin.Context, _type string) {
+	key := strings.TrimPrefix(c.Param("key"), "/")
+	if key == "" {
+		errors.Err(c, errors.InvalidArg(key))
+		return
+	}
+
+	keys := util.Str2List(key, ",")
+	if len(keys) == 0 {
+		errors.Err(c, errors.InvalidArg(key))
+		return
+	}
+
+	var _err error
+	for _, k := range keys {
+		if strings.Contains(k, "/") {
+			if absolutePath, err := s.findPath(_type, k); err == nil {
+				c.Redirect(http.StatusFound, "/data/"+absolutePath)
+				return
+			}
+		}
+		media, err := s.db.GetMedia(_type, k)
+		if err != nil {
+			_err = err
+			continue
+		}
+		if c.Query("info") != "" {
+			c.JSON(http.StatusOK, media)
+			return
+		}
+		if media.Type == "voice" && c.Query("transcribe") != "" {
+			s.handleVoiceTranscription(c, k, media)
+			return
+		}
+		switch media.Type {
+		case "voice":
+			s.HandleVoice(c, media.Data)
+			return
+		default:
+			c.Redirect(http.StatusFound, "/data/"+media.Path)
+			return
+		}
+	}
+
+	if _err != nil {
+		errors.Err(c, _err)
+		return
+	}
+}
+
+func (s *Service) handleVoiceTranscription(c *gin.Context, key string, media *model.Media) {
+	if s.speechTranscriber == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "speech transcription not enabled"})
+		return
+	}
+
+	if len(media.Data) == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "voice data unavailable"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var cancel context.CancelFunc
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		ctx, cancel = context.WithTimeout(ctx, 2*time.Minute)
+	}
+	if cancel != nil {
+		defer cancel()
+	}
+
+	opts := s.speechOptions
+	if lang := strings.TrimSpace(c.Query("lang")); lang != "" {
+		opts.Language = lang
+		opts.LanguageSet = true
+	}
+	if translate := strings.TrimSpace(c.Query("translate")); translate != "" {
+		switch strings.ToLower(translate) {
+		case "1", "true", "yes", "on":
+			opts.Translate = true
+			opts.TranslateSet = true
+		case "0", "false", "no", "off":
+			opts.Translate = false
+			opts.TranslateSet = true
+		}
+	}
+
+	res, err := s.speechTranscriber.TranscribeSilk(ctx, media.Data, opts)
+	if err != nil {
+		if ctx.Err() != nil {
+			c.JSON(http.StatusRequestTimeout, gin.H{"error": "transcription cancelled"})
+			return
+		}
+		log.Error().Err(err).Str("media_key", key).Msg("voice transcription failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "transcription failed"})
+		return
+	}
+	if res == nil {
+		c.JSON(http.StatusOK, gin.H{"key": key, "text": "", "language": opts.Language, "duration": 0})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"key":      key,
+		"text":     res.Text,
+		"language": res.Language,
+		"duration": res.Duration.Seconds(),
+		"segments": res.Segments,
+	})
+}
+
+func (s *Service) findPath(_type string, key string) (string, error) {
+	absolutePath := filepath.Join(s.conf.GetDataDir(), key)
+	if _, err := os.Stat(absolutePath); err == nil {
+		return key, nil
+	}
+	switch _type {
+	case "image":
+		for _, suffix := range []string{"_h.dat", ".dat", "_t.dat"} {
+			if _, err := os.Stat(absolutePath + suffix); err == nil {
+				return key + suffix, nil
+			}
+		}
+	case "video":
+		for _, suffix := range []string{".mp4", "_thumb.jpg"} {
+			if _, err := os.Stat(absolutePath + suffix); err == nil {
+				return key + suffix, nil
+			}
+		}
+	}
+	return "", errors.ErrMediaNotFound
+}
+
+func (s *Service) handleMediaData(c *gin.Context) {
+	relativePath := filepath.Clean(c.Param("path"))
+
+	absolutePath := filepath.Join(s.conf.GetDataDir(), relativePath)
+
+	if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "File not found",
+		})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(absolutePath))
+	switch {
+	case ext == ".dat":
+		s.HandleDatFile(c, absolutePath)
+	default:
+		// 直接返回文件
+		c.File(absolutePath)
+	}
+
+}
+
+func (s *Service) HandleDatFile(c *gin.Context, path string) {
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		errors.Err(c, err)
+		return
+	}
+	out, ext, err := dat2img.Dat2Image(b)
+	if err != nil {
+		c.File(path)
+		return
+	}
+
+	switch ext {
+	case "jpg", "jpeg":
+		c.Data(http.StatusOK, "image/jpeg", out)
+	case "png":
+		c.Data(http.StatusOK, "image/png", out)
+	case "gif":
+		c.Data(http.StatusOK, "image/gif", out)
+	case "bmp":
+		c.Data(http.StatusOK, "image/bmp", out)
+	case "mp4":
+		c.Data(http.StatusOK, "video/mp4", out)
+	default:
+		c.Data(http.StatusOK, "image/jpg", out)
+		// c.File(path)
+	}
+}
+
+func (s *Service) HandleVoice(c *gin.Context, data []byte) {
+	out, err := silk.Silk2MP3(data)
+	if err != nil {
+		c.Data(http.StatusOK, "audio/silk", data)
+		return
+	}
+	c.Data(http.StatusOK, "audio/mp3", out)
+}
+
+// 统一占位符：将 PlainTextContent 里形如 ![标签](url) 或 [标签](url) 的模式转成超链接形式，仅显示 [标签]。
+var (
+	placeholderPattern = regexp.MustCompile(`!?\[([^\]]+)\]\((https?://[^)]+)\)`)
+)
+
+func messageHTMLPlaceholder(m *model.Message) string {
+	content := m.PlainTextContent()
+	return placeholderPattern.ReplaceAllStringFunc(content, func(s string) string {
+		matches := placeholderPattern.FindStringSubmatch(s)
+		if len(matches) != 3 {
+			return template.HTMLEscapeString(s)
+		}
+		fullLabel := matches[1]
+		url := matches[2]
+		left := fullLabel
+		rest := ""
+		if p := strings.Index(fullLabel, "|"); p >= 0 {
+			left = fullLabel[:p]
+			rest = fullLabel[p+1:]
+		}
+		className := "media"
+		if left == "动画表情" || left == "GIF表情" || strings.Contains(left, "表情") {
+			className = "media anim"
+		}
+		if left == "语音" {
+			className = "media voice-link"
+		}
+		var anchorText string
+		if left == "链接" { // 保留完整形式 [链接|标题\n更多说明]
+			escapedFull := template.HTMLEscapeString(fullLabel)
+			escapedFull = strings.ReplaceAll(escapedFull, "\r", "")
+			escapedFull = strings.ReplaceAll(escapedFull, "\n", "<br/>")
+			anchorText = "[" + escapedFull + "]"
+		} else if left == "文件" && rest != "" { // 文件保留文件名
+			anchorText = "[文件]" + template.HTMLEscapeString(rest)
+		} else {
+			anchorText = "[" + template.HTMLEscapeString(left) + "]"
+		}
+		escapedURL := template.HTMLEscapeString(url)
+		anchor := `<a class="` + className + `" href="` + escapedURL + `" target="_blank">` + anchorText + `</a>`
+		if left == "语音" {
+			return `<span class="voice-entry">` + anchor + `<button type="button" class="voice-transcribe-btn">转文字</button><span class="voice-transcribe-result" aria-live="polite"></span></span>`
+		}
+		return anchor
+	})
 }
