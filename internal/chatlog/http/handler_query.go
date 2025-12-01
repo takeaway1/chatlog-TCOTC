@@ -142,7 +142,7 @@ func (s *Service) handleSearch(c *gin.Context) {
 // renderSearchHTML 渲染搜索结果为 HTML
 func (s *Service) renderSearchHTML(c *gin.Context, resp *model.SearchResponse) {
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writeChatlogHTMLHeader(c.Writer, "Search Result")
+	writeChatlogHTMLHeaderCompat(c.Writer, "Search Result")
 	c.Writer.WriteString("<h1>搜索结果</h1>")
 	c.Writer.WriteString("<div class=\"search-meta\">")
 	
@@ -211,7 +211,7 @@ func (s *Service) renderSearchHTML(c *gin.Context, resp *model.SearchResponse) {
 		}
 	}
 	
-	c.Writer.WriteString(previewHTMLSnippet)
+	c.Writer.WriteString(getPreviewSnippet())
 	c.Writer.WriteString("</body></html>")
 }
 
@@ -385,7 +385,7 @@ func (s *Service) handleChatlogGrouped(c *gin.Context, start, end time.Time, sen
 // renderChatlogGroupedHTML 渲染分组聊天记录为 HTML
 func (s *Service) renderChatlogGroupedHTML(c *gin.Context, groups []*grouped, start, end time.Time) {
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writeChatlogHTMLHeader(c.Writer, "Chatlog")
+	writeChatlogHTMLHeaderCompat(c.Writer, "Chatlog")
 	c.Writer.WriteString(fmt.Sprintf("<h2>All Messages %s ~ %s</h2>", start.Format("2006-01-02 15:04:05"), end.Format("2006-01-02 15:04:05")))
 	
 	for _, g := range groups {
@@ -414,7 +414,7 @@ func (s *Service) renderChatlogGroupedHTML(c *gin.Context, groups []*grouped, st
 		c.Writer.WriteString("</details>")
 	}
 	
-	c.Writer.WriteString(previewHTMLSnippet)
+	c.Writer.WriteString(getPreviewSnippet())
 	c.Writer.WriteString("</body></html>")
 }
 
@@ -488,7 +488,7 @@ func (s *Service) handleChatlogSingle(c *gin.Context, start, end time.Time, talk
 // renderChatlogSingleHTML 渲染单会话聊天记录为 HTML
 func (s *Service) renderChatlogSingleHTML(c *gin.Context, messages []*model.Message, start, end time.Time, talker string) {
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writeChatlogHTMLHeader(c.Writer, "Chatlog")
+	writeChatlogHTMLHeaderCompat(c.Writer, "Chatlog")
 	c.Writer.WriteString(fmt.Sprintf("<h2>Messages %s ~ %s (%s)</h2>", start.Format("2006-01-02 15:04:05"), end.Format("2006-01-02 15:04:05"), template.HTMLEscapeString(talker)))
 	
 	for _, m := range messages {
@@ -512,7 +512,7 @@ func (s *Service) renderChatlogSingleHTML(c *gin.Context, messages []*model.Mess
 		c.Writer.WriteString("</pre></div></div></div>")
 	}
 	
-	c.Writer.WriteString(previewHTMLSnippet)
+	c.Writer.WriteString(getPreviewSnippet())
 	c.Writer.WriteString("</body></html>")
 }
 
@@ -888,7 +888,7 @@ func (s *Service) renderDiaryHTML(c *gin.Context, groups []*grouped, heading str
 		c.Writer.WriteString("</details>")
 	}
 	
-	c.Writer.WriteString(previewHTMLSnippet)
+	c.Writer.WriteString(getPreviewSnippet())
 	c.Writer.WriteString("</body></html>")
 }
 

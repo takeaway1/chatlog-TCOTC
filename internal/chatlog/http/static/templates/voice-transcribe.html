@@ -1,0 +1,136 @@
+<style>
+.voice-entry {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0;
+    flex-wrap: wrap;
+}
+
+.voice-transcribe-btn {
+    padding: 2px 8px;
+    font-size: 12px;
+    border: 1px solid #888;
+    background: #f0f0f0;
+    color: #222;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity .2s ease;
+}
+
+.voice-transcribe-btn--busy,
+.voice-transcribe-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.voice-transcribe-result {
+    font-size: 12px;
+    color: #444;
+    min-height: 1em;
+    max-width: 520px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+</style>
+
+<script>
+(function(){
+    if (window.__chatlogVoiceHandler) {
+        return;
+    }
+    window.__chatlogVoiceHandler = true;
+
+    document.addEventListener('click', async function(ev){
+        const btn = ev.target.closest('.voice-transcribe-btn');
+        if (!btn) {
+            return;
+        }
+        ev.preventDefault();
+
+        const container = btn.closest('.voice-entry');
+        const link = container ? container.querySelector('a.voice-link') : null;
+        const result = container ? container.querySelector('.voice-transcribe-result') : null;
+        
+        if (!link) {
+            return;
+        }
+
+        const href = link.getAttribute('href');
+        if (!href) {
+            return;
+        }
+
+        let url;
+        try {
+            url = new URL(href, window.location.origin);
+        } catch(err) {
+            if (result) {
+                result.textContent = '链接无效';
+                result.dataset.status = 'error';
+            }
+            return;
+        }
+
+        url.searchParams.set('transcribe', '1');
+
+        const previous = result ? result.textContent : '';
+        if (result) {
+            result.textContent = '转写中...';
+            result.dataset.status = 'loading';
+        }
+
+        btn.disabled = true;
+        btn.classList.add('voice-transcribe-btn--busy');
+
+        try {
+            const resp = await fetch(url.toString(), { 
+                headers: { 'Accept': 'application/json' } 
+            });
+            
+            if (!resp.ok) {
+                throw new Error('HTTP ' + resp.status);
+            }
+
+            let data = null;
+            const ct = resp.headers.get('content-type') || '';
+            if (ct.indexOf('application/json') >= 0) {
+                data = await resp.json();
+            }
+
+            const text = data && typeof data.text === 'string' ? data.text.trim() : '';
+            if (result) {
+                if (text) {
+                    result.textContent = text;
+                    result.dataset.status = 'done';
+                } else {
+                    result.textContent = '未识别到语音内容';
+                    result.dataset.status = 'empty';
+                }
+                
+                if (data && data.language) {
+                    result.dataset.language = data.language;
+                }
+                
+                if (data && data.duration !== undefined) {
+                    result.dataset.duration = String(data.duration);
+                }
+            }
+        } catch(err) {
+            if (result) {
+                result.textContent = '转写失败';
+                result.dataset.status = 'error';
+            }
+            console.error('voice transcription failed', err);
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('voice-transcribe-btn--busy');
+            
+            if (result && result.dataset.status === 'loading') {
+                result.textContent = previous;
+                result.dataset.status = '';
+            }
+        }
+    });
+})();
+</script>
