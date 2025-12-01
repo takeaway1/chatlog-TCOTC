@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog/log"
 
 	"github.com/sjzar/chatlog/internal/model"
 	"github.com/sjzar/chatlog/internal/wechatdb/msgstore"
@@ -51,7 +52,9 @@ type Index struct {
 
 // Open prepares an Index rooted at basePath.
 func Open(basePath string) (*Index, error) {
+	log.Debug().Str("path", basePath).Msg("opening index")
 	if err := os.MkdirAll(basePath, 0o755); err != nil {
+		log.Debug().Err(err).Msg("failed to create index base dir")
 		return nil, fmt.Errorf("create index base dir: %w", err)
 	}
 
@@ -71,6 +74,7 @@ func Open(basePath string) (*Index, error) {
 
 // Close releases all opened store indices.
 func (i *Index) Close() error {
+	log.Debug().Msg("closing index")
 	if i == nil {
 		return nil
 	}
@@ -85,11 +89,15 @@ func (i *Index) Close() error {
 		}
 		delete(i.stores, id)
 	}
+	if firstErr != nil {
+		log.Debug().Err(firstErr).Msg("error closing index")
+	}
 	return firstErr
 }
 
 // Reset removes all materialised indices.
 func (i *Index) Reset() error {
+	log.Debug().Msg("resetting index")
 	if i == nil {
 		return nil
 	}
@@ -107,6 +115,7 @@ func (i *Index) Reset() error {
 
 // SyncStores hydrates store handles for the provided message stores.
 func (i *Index) SyncStores(stores []*msgstore.Store) error {
+	log.Debug().Int("count", len(stores)).Msg("syncing stores")
 	if i == nil {
 		return nil
 	}
@@ -125,6 +134,7 @@ func (i *Index) SyncStores(stores []*msgstore.Store) error {
 		}
 		si, err := i.ensureStoreIndexLocked(store)
 		if err != nil {
+			log.Debug().Err(err).Str("store", id).Msg("failed to ensure store index")
 			return err
 		}
 		desired[id] = si
@@ -247,6 +257,7 @@ func (i *Index) LastBuilt() time.Time {
 
 // IndexStoreMessages indexes a batch of chat messages for a given store.
 func (i *Index) IndexStoreMessages(store *msgstore.Store, messages []*model.Message) error {
+	log.Debug().Int("count", len(messages)).Str("store", store.ID).Msg("indexing store messages")
 	if len(messages) == 0 {
 		return nil
 	}
@@ -256,6 +267,7 @@ func (i *Index) IndexStoreMessages(store *msgstore.Store, messages []*model.Mess
 
 	si, err := i.ensureStoreIndex(store)
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to ensure store index for indexing")
 		return err
 	}
 	return si.indexMessages(messages)
@@ -263,15 +275,18 @@ func (i *Index) IndexStoreMessages(store *msgstore.Store, messages []*model.Mess
 
 // Search performs a federated search across all store indices.
 func (i *Index) Search(req *model.SearchRequest, talkers []string, senders []string, startUnix, endUnix int64, offset, limit int) ([]*SearchHit, int, error) {
+	log.Debug().Interface("req", req).Ints64("time_range", []int64{startUnix, endUnix}).Msg("searching index")
 	if req == nil {
 		return nil, 0, errors.New("search request is nil")
 	}
 
 	match, err := buildFTSQuery(req.Query)
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to build FTS query")
 		return nil, 0, err
 	}
 	if match == "" {
+		log.Debug().Msg("empty match query, returning empty results")
 		return []*SearchHit{}, 0, nil
 	}
 
@@ -309,6 +324,7 @@ func (i *Index) Search(req *model.SearchRequest, talkers []string, senders []str
 	for _, si := range stores {
 		hits, count, err := si.search(match, talkers, senders, startUnix, endUnix, 0, perStoreLimit)
 		if err != nil {
+			log.Debug().Err(err).Msg("store search failed")
 			return nil, 0, err
 		}
 		total += count
@@ -345,6 +361,7 @@ func (i *Index) Search(req *model.SearchRequest, talkers []string, senders []str
 		end = len(combined)
 	}
 
+	log.Debug().Int("hits", len(combined[offset:end])).Int("total", total).Msg("search completed")
 	return combined[offset:end], total, nil
 }
 

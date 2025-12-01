@@ -4,6 +4,8 @@ import (
 	"context"
 	"runtime"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/sjzar/chatlog/internal/errors"
 	"github.com/sjzar/chatlog/internal/wechat/model"
 	"github.com/sjzar/chatlog/internal/wechat/process"
@@ -50,11 +52,14 @@ func NewManager() *Manager {
 
 // Load 加载微信进程信息
 func (m *Manager) Load() error {
+	log.Debug().Msg("loading wechat processes")
 	// 查找微信进程
 	processes, err := m.detector.FindProcesses()
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to find processes")
 		return err
 	}
+	log.Debug().Int("count", len(processes)).Msg("found processes")
 
 	// 转换为账号信息
 	accounts := make([]*Account, 0, len(processes))
@@ -62,6 +67,7 @@ func (m *Manager) Load() error {
 
 	for _, p := range processes {
 		account := NewAccount(p)
+		log.Debug().Str("account", account.Name).Uint32("pid", p.PID).Msg("processing account")
 
 		accounts = append(accounts, account)
 		if account.Name != "" {
@@ -77,6 +83,7 @@ func (m *Manager) Load() error {
 
 // GetAccount 获取指定名称的账号
 func (m *Manager) GetAccount(name string) (*Account, error) {
+	log.Debug().Str("name", name).Msg("getting account")
 	p, err := m.GetProcess(name)
 	if err != nil {
 		return nil, err
@@ -85,6 +92,7 @@ func (m *Manager) GetAccount(name string) (*Account, error) {
 }
 
 func (m *Manager) GetProcess(name string) (*model.Process, error) {
+	log.Debug().Str("name", name).Msg("getting process")
 	p, ok := m.processMap[name]
 	if !ok {
 		return nil, errors.WeChatAccountNotFound(name)
@@ -99,6 +107,7 @@ func (m *Manager) GetAccounts() []*Account {
 
 // DecryptDatabase 便捷方法：通过账号名解密数据库
 func (m *Manager) DecryptDatabase(ctx context.Context, accountName, dbPath, outputPath string) error {
+	log.Debug().Str("account", accountName).Str("dbPath", dbPath).Str("outputPath", outputPath).Msg("decrypting database via manager")
 	// 获取账号
 	account, err := m.GetAccount(accountName)
 	if err != nil {

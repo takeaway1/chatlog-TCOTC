@@ -1,6 +1,8 @@
 package process
 
 import (
+	"github.com/rs/zerolog/log"
+
 	"github.com/sjzar/chatlog/internal/wechat/model"
 	"github.com/sjzar/chatlog/internal/wechat/process/darwin"
 	"github.com/sjzar/chatlog/internal/wechat/process/windows"
@@ -12,6 +14,7 @@ type Detector interface {
 
 // NewDetector 创建适合当前平台的检测器
 func NewDetector(platform string) Detector {
+	log.Debug().Str("platform", platform).Msg("creating process detector")
 	// 根据平台返回对应的实现
 	switch platform {
 	case "windows":

@@ -3,6 +3,8 @@ package decrypt
 import (
 	"path/filepath"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/sjzar/chatlog/internal/wechat/decrypt/common"
 	"github.com/sjzar/chatlog/pkg/util/dat2img"
 )
@@ -22,14 +24,17 @@ func NewValidator(platform string, version int, dataDir string) (*Validator, err
 }
 
 func NewValidatorWithFile(platform string, version int, dataDir string) (*Validator, error) {
+	log.Debug().Str("platform", platform).Int("version", version).Str("dataDir", dataDir).Msg("creating validator with file")
 	dbFile := GetSimpleDBFile(platform, version)
 	dbPath := filepath.Join(dataDir, dbFile)
 	decryptor, err := NewDecryptor(platform, version)
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to create decryptor for validator")
 		return nil, err
 	}
 	d, err := common.OpenDBFile(dbPath, decryptor.GetPageSize())
 	if err != nil {
+		log.Debug().Err(err).Str("path", dbPath).Msg("failed to open db file for validator")
 		return nil, err
 	}
 
@@ -49,14 +54,23 @@ func NewValidatorWithFile(platform string, version int, dataDir string) (*Valida
 }
 
 func (v *Validator) Validate(key []byte) bool {
-	return v.decryptor.Validate(v.dbFile.FirstPage, key)
+	valid := v.decryptor.Validate(v.dbFile.FirstPage, key)
+	if valid {
+		log.Debug().Msg("db key validation passed")
+	}
+	return valid
 }
 
 func (v *Validator) ValidateImgKey(key []byte) bool {
 	if v.imgKeyValidator == nil {
+		log.Debug().Msg("img key validator is nil")
 		return false
 	}
-	return v.imgKeyValidator.Validate(key)
+	valid := v.imgKeyValidator.Validate(key)
+	if valid {
+		log.Debug().Msg("img key validation passed")
+	}
+	return valid
 }
 
 func GetSimpleDBFile(platform string, version int) string {
