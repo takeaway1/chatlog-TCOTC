@@ -16,6 +16,7 @@ var EFS embed.FS
 // initRouter 初始化所有路由
 func (s *Service) initRouter() {
 	log.Debug().Msg("initializing router")
+	s.router.Use(corsMiddleware())
 	s.initBaseRouter()
 	s.initMediaRouter()
 	s.initAPIRouter()
