@@ -30,6 +30,9 @@ func (r *Repository) GetMessages(ctx context.Context, startTime, endTime time.Ti
 
 // EnrichMessages 补充消息的额外信息
 func (r *Repository) EnrichMessages(ctx context.Context, messages []*model.Message) error {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+
 	for _, msg := range messages {
 		r.enrichMessage(msg)
 	}
@@ -53,7 +56,7 @@ func (r *Repository) enrichMessage(msg *model.Message) {
 
 	// 如果不是自己发送的消息且还没有显示名称，尝试补充发送者信息
 	if msg.SenderName == "" && !msg.IsSelf {
-		contact := r.getFullContact(msg.Sender)
+		contact := r.findFullContact(msg.Sender)
 		if contact != nil {
 			msg.SenderName = contact.DisplayName()
 		}
@@ -61,21 +64,24 @@ func (r *Repository) enrichMessage(msg *model.Message) {
 }
 
 func (r *Repository) parseTalkerAndSender(ctx context.Context, talker, sender string) (string, string) {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+
 	displayName2User := make(map[string]string)
 	users := make(map[string]bool)
 
 	talkers := util.Str2List(talker, ",")
 	if len(talkers) > 0 {
 		for i := 0; i < len(talkers); i++ {
-			if contact, _ := r.GetContact(ctx, talkers[i]); contact != nil {
+			if contact := r.findContact(talkers[i]); contact != nil {
 				talkers[i] = contact.UserName
-			} else if chatRoom, _ := r.GetChatRoom(ctx, talker); chatRoom != nil {
+			} else if chatRoom := r.findChatRoom(talker); chatRoom != nil {
 				talkers[i] = chatRoom.Name
 			}
 		}
 		// 获取群聊的用户列表
 		for i := 0; i < len(talkers); i++ {
-			if chatRoom, _ := r.GetChatRoom(ctx, talkers[i]); chatRoom != nil {
+			if chatRoom := r.findChatRoom(talkers[i]); chatRoom != nil {
 				for user, displayName := range chatRoom.User2DisplayName {
 					displayName2User[displayName] = user
 				}
@@ -95,7 +101,7 @@ func (r *Repository) parseTalkerAndSender(ctx context.Context, talker, sender st
 			} else {
 				// FIXME 大量群聊用户名称重复，无法直接通过 GetContact 获取 ID，后续再优化
 				for user := range users {
-					if contact := r.getFullContact(user); contact != nil {
+					if contact := r.findFullContact(user); contact != nil {
 						if contact.DisplayName() == senders[i] {
 							senders[i] = user
 							break

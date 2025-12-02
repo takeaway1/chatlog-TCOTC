@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog/log"
@@ -24,6 +25,14 @@ type Repository struct {
 	indexFingerprint string
 	indexCtx         context.Context
 	indexCancel      context.CancelFunc
+
+	// Cache lock
+	cacheMu sync.RWMutex
+
+	// Debounce
+	contactDebounceTimer  *time.Timer
+	chatRoomDebounceTimer *time.Timer
+	debounceMu            sync.Mutex
 
 	// Cache for contact
 	contactCache      map[string]*model.Contact
@@ -104,9 +113,19 @@ func (r *Repository) contactCallback(event fsnotify.Event) error {
 	if !(event.Op.Has(fsnotify.Create) || event.Op.Has(fsnotify.Write) || event.Op.Has(fsnotify.Rename) || event.Op.Has(fsnotify.Remove)) {
 		return nil
 	}
-	if err := r.initContactCache(context.Background()); err != nil {
-		log.Err(err).Msgf("Failed to reinitialize contact cache: %s", event.Name)
+
+	r.debounceMu.Lock()
+	defer r.debounceMu.Unlock()
+
+	if r.contactDebounceTimer != nil {
+		r.contactDebounceTimer.Stop()
 	}
+
+	r.contactDebounceTimer = time.AfterFunc(500*time.Millisecond, func() {
+		if err := r.initContactCache(context.Background()); err != nil {
+			log.Err(err).Msgf("Failed to reinitialize contact cache: %s", event.Name)
+		}
+	})
 	return nil
 }
 
@@ -114,9 +133,19 @@ func (r *Repository) chatroomCallback(event fsnotify.Event) error {
 	if !(event.Op.Has(fsnotify.Create) || event.Op.Has(fsnotify.Write) || event.Op.Has(fsnotify.Rename) || event.Op.Has(fsnotify.Remove)) {
 		return nil
 	}
-	if err := r.initChatRoomCache(context.Background()); err != nil {
-		log.Err(err).Msgf("Failed to reinitialize contact cache: %s", event.Name)
+
+	r.debounceMu.Lock()
+	defer r.debounceMu.Unlock()
+
+	if r.chatRoomDebounceTimer != nil {
+		r.chatRoomDebounceTimer.Stop()
 	}
+
+	r.chatRoomDebounceTimer = time.AfterFunc(500*time.Millisecond, func() {
+		if err := r.initChatRoomCache(context.Background()); err != nil {
+			log.Err(err).Msgf("Failed to reinitialize chatroom cache: %s", event.Name)
+		}
+	})
 	return nil
 }
 

@@ -28,6 +28,8 @@ func (r *Repository) initChatRoomCache(ctx context.Context) error {
 		log.Error().Err(err).Msg("Failed to load chat rooms")
 	}
 
+	// 读取联系人缓存需要加读锁
+	r.cacheMu.RLock()
 	for _, chatRoom := range chatRooms {
 		// 补充群聊信息（从联系人中获取 Remark 和 NickName）
 		r.enrichChatRoom(chatRoom)
@@ -82,9 +84,14 @@ func (r *Repository) initChatRoomCache(ctx context.Context) error {
 			}
 		}
 	}
+	r.cacheMu.RUnlock()
+
 	sort.Strings(chatRoomList)
 	sort.Strings(chatRoomRemark)
 	sort.Strings(chatRoomNickName)
+
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
 
 	r.chatRoomCache = chatRoomMap
 	r.remarkToChatRoom = remarkToChatRoom
@@ -97,6 +104,8 @@ func (r *Repository) initChatRoomCache(ctx context.Context) error {
 }
 
 func (r *Repository) GetChatRooms(ctx context.Context, key string, limit, offset int) ([]*model.ChatRoom, error) {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
 
 	ret := make([]*model.ChatRoom, 0)
 	if key != "" {
@@ -136,6 +145,9 @@ func (r *Repository) GetChatRooms(ctx context.Context, key string, limit, offset
 }
 
 func (r *Repository) GetChatRoom(ctx context.Context, key string) (*model.ChatRoom, error) {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+
 	chatRoom := r.findChatRoom(key)
 	if chatRoom == nil {
 		return nil, errors.ChatRoomNotFound(key)

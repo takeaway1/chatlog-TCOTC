@@ -80,6 +80,9 @@ func (r *Repository) initContactCache(ctx context.Context) error {
 	sort.Strings(remarkList)
 	sort.Strings(nickNameList)
 
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+
 	r.contactCache = contactMap
 	r.aliasToContact = aliasMap
 	r.remarkToContact = remarkMap
@@ -94,6 +97,9 @@ func (r *Repository) initContactCache(ctx context.Context) error {
 }
 
 func (r *Repository) GetContact(ctx context.Context, key string) (*model.Contact, error) {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+
 	// 先尝试从缓存中获取
 	contact := r.findContact(key)
 	if contact == nil {
@@ -103,6 +109,9 @@ func (r *Repository) GetContact(ctx context.Context, key string) (*model.Contact
 }
 
 func (r *Repository) GetContacts(ctx context.Context, key string, limit, offset int) ([]*model.Contact, error) {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+
 	ret := make([]*model.Contact, 0)
 	if key != "" {
 		ret = r.findContacts(key)
@@ -239,6 +248,12 @@ func (r *Repository) findContacts(key string) []*model.Contact {
 
 // getFullContact 获取联系人信息，包括群聊成员
 func (r *Repository) getFullContact(userName string) *model.Contact {
+	r.cacheMu.RLock()
+	defer r.cacheMu.RUnlock()
+	return r.findFullContact(userName)
+}
+
+func (r *Repository) findFullContact(userName string) *model.Contact {
 	// 先查找联系人缓存
 	if contact, ok := r.contactCache[userName]; ok {
 		return contact
