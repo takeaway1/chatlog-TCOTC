@@ -27,6 +27,7 @@ type DBManager struct {
 }
 
 func NewDBManager(path string) *DBManager {
+	log.Debug().Str("path", path).Msg("dbm: creating new DBManager")
 	return &DBManager{
 		path:    path,
 		id:      filepath.Base(path),
@@ -38,6 +39,7 @@ func NewDBManager(path string) *DBManager {
 }
 
 func (d *DBManager) AddGroup(g *Group) error {
+	log.Debug().Str("group", g.Name).Str("pattern", g.Pattern).Msg("dbm: adding group")
 	fg, err := filemonitor.NewFileGroup(g.Name, d.path, g.Pattern, g.BlackList)
 	if err != nil {
 		return err
@@ -51,6 +53,7 @@ func (d *DBManager) AddGroup(g *Group) error {
 }
 
 func (d *DBManager) AddCallback(group string, callback func(event fsnotify.Event) error) error {
+	log.Debug().Str("group", group).Msg("dbm: adding callback")
 	d.mutex.RLock()
 	fg, ok := d.fgs[group]
 	d.mutex.RUnlock()
@@ -62,6 +65,7 @@ func (d *DBManager) AddCallback(group string, callback func(event fsnotify.Event
 }
 
 func (d *DBManager) GetDB(name string) (*sql.DB, error) {
+	log.Debug().Str("name", name).Msg("dbm: GetDB request")
 	dbPaths, err := d.GetDBPath(name)
 	if err != nil {
 		return nil, err
@@ -70,6 +74,7 @@ func (d *DBManager) GetDB(name string) (*sql.DB, error) {
 }
 
 func (d *DBManager) GetDBs(name string) ([]*sql.DB, error) {
+	log.Debug().Str("name", name).Msg("dbm: GetDBs request")
 	dbPaths, err := d.GetDBPath(name)
 	if err != nil {
 		return nil, err
@@ -86,6 +91,7 @@ func (d *DBManager) GetDBs(name string) ([]*sql.DB, error) {
 }
 
 func (d *DBManager) GetDBPath(name string) ([]string, error) {
+	log.Debug().Str("name", name).Msg("dbm: GetDBPath request")
 	d.mutex.RLock()
 	dbPaths, ok := d.dbPaths[name]
 	d.mutex.RUnlock()
@@ -112,6 +118,7 @@ func (d *DBManager) GetDBPath(name string) ([]string, error) {
 }
 
 func (d *DBManager) OpenDB(path string) (*sql.DB, error) {
+	log.Debug().Str("path", path).Msg("dbm: OpenDB request")
 	d.mutex.RLock()
 	db, ok := d.dbs[path]
 	d.mutex.RUnlock()
@@ -139,6 +146,7 @@ func (d *DBManager) OpenDB(path string) (*sql.DB, error) {
 }
 
 func (d *DBManager) Callback(event fsnotify.Event) error {
+	log.Debug().Str("event", event.String()).Msg("dbm: file event callback")
 	if !event.Op.Has(fsnotify.Create) {
 		return nil
 	}
@@ -158,14 +166,17 @@ func (d *DBManager) Callback(event fsnotify.Event) error {
 }
 
 func (d *DBManager) Start() error {
+	log.Debug().Msg("dbm: starting file monitor")
 	return d.fm.Start()
 }
 
 func (d *DBManager) Stop() error {
+	log.Debug().Msg("dbm: stopping file monitor")
 	return d.fm.Stop()
 }
 
 func (d *DBManager) Close() error {
+	log.Debug().Msg("dbm: closing DBManager")
 	for _, db := range d.dbs {
 		db.Close()
 	}

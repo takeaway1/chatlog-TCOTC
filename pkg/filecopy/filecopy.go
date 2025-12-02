@@ -292,13 +292,17 @@ func newManager(instanceID string) *FileCopyManager {
 
 	// Create temporary directory with improved error handling
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		log.Debug().Err(err).Str("path", tempDir).Msg("filecopy: failed to create primary temp dir")
 		// Try fallback directory
 		tempDir = filepath.Join(os.TempDir(), "filecopy")
 		if err := os.MkdirAll(tempDir, 0755); err != nil {
+			log.Debug().Err(err).Str("path", tempDir).Msg("filecopy: failed to create fallback temp dir")
 			// If both fail, use system temp directly (last resort)
 			tempDir = os.TempDir()
 		}
 	}
+
+	log.Debug().Str("instanceID", instanceID).Str("tempDir", tempDir).Msg("filecopy: new manager initialized")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -365,8 +369,10 @@ func (fm *FileCopyManager) periodicCleanupWorker() {
 // IMPORTANT: Uses incremental update strategy to avoid concurrent access issues.
 // The index is NOT cleared during cleanup, only updated incrementally.
 func (fm *FileCopyManager) rebuildIndexAndCleanup() {
+	log.Debug().Str("instanceID", fm.instanceID).Msg("filecopy: starting rebuildIndexAndCleanup")
 	entries, err := os.ReadDir(fm.tempDir)
 	if err != nil {
+		log.Debug().Err(err).Str("dir", fm.tempDir).Msg("filecopy: failed to read temp dir")
 		return // Directory doesn't exist or is inaccessible, skip indexing
 	}
 
@@ -430,6 +436,7 @@ func (fm *FileCopyManager) rebuildIndexAndCleanup() {
 					}
 				}
 				if now.Sub(info.ModTime()) > OrphanFileCleanupThreshold {
+					log.Debug().Str("path", filePath).Msg("filecopy: cleaning up orphan file")
 					fm.processDeletionInline(filePath)
 				}
 			}
@@ -476,6 +483,7 @@ func (fm *FileCopyManager) rebuildIndexAndCleanup() {
 			atomic.AddInt64(&fm.cacheSize, -1)
 		}
 		// Delete inline (best-effort)
+		log.Debug().Str("path", candidate.filePath).Msg("filecopy: deleting old version")
 		fm.processDeletionInline(candidate.filePath)
 	}
 
@@ -492,6 +500,7 @@ func (fm *FileCopyManager) rebuildIndexAndCleanup() {
 		// Check if file exists on disk
 		if _, exists := diskFiles[entry.TempPath]; !exists {
 			// File not on disk and not recently accessed, remove from index
+			log.Debug().Str("path", entry.TempPath).Msg("filecopy: removing stale index entry")
 			fm.fileIndex.Delete(key)
 			atomic.AddInt64(&fm.cacheSize, -1)
 		}
@@ -523,6 +532,8 @@ func (fm *FileCopyManager) performCacheCleanup() {
 	if currentSize <= MaxCacheEntries {
 		return // Cache size is acceptable
 	}
+
+	log.Debug().Int64("currentSize", currentSize).Int("max", MaxCacheEntries).Msg("filecopy: performing cache cleanup")
 
 	// Collect all entries with their last access times
 	type cacheEntry struct {
@@ -564,6 +575,7 @@ func (fm *FileCopyManager) performCacheCleanup() {
 		}
 
 		// Delete inline (best-effort)
+		log.Debug().Str("path", entry.entry.TempPath).Msg("filecopy: evicting cache entry")
 		fm.processDeletionInline(entry.entry.TempPath)
 	}
 }
@@ -593,9 +605,11 @@ func GetTempCopy(instanceID, originalPath string) (string, error) {
 // This eliminates repeated directory scanning and provides O(1) lookup performance.
 // Old file versions are cleaned up by the periodic cleanup worker, not here.
 func (fm *FileCopyManager) GetTempCopy(originalPath string) (string, error) {
+	log.Debug().Str("originalPath", originalPath).Str("instanceID", fm.instanceID).Msg("filecopy: GetTempCopy request")
 	// Validate original file and get metadata
 	stat, err := os.Stat(originalPath)
 	if err != nil {
+		log.Debug().Err(err).Str("path", originalPath).Msg("filecopy: original file check failed")
 		return "", fmt.Errorf("original file does not exist: %w", err)
 	}
 
@@ -643,21 +657,26 @@ func (fm *FileCopyManager) GetTempCopy(originalPath string) (string, error) {
 	if value, exists := fm.fileIndex.Load(cacheKey); exists {
 		entry := value.(*FileIndexEntry)
 		if _, err := os.Stat(entry.TempPath); err == nil && currentSize == entry.Size {
+			log.Debug().Str("originalPath", originalPath).Str("tempPath", entry.TempPath).Msg("filecopy: cache hit")
 			entry.SetLastAccess(now)
 			entry.SetOriginalPath(originalPath)
 			return entry.TempPath, nil
 		}
+		log.Debug().Str("path", entry.TempPath).Msg("filecopy: cache entry invalid or stale")
 		// Remove stale index entry; physical deletion handled elsewhere
 		fm.fileIndex.Delete(cacheKey)
 		atomic.AddInt64(&fm.cacheSize, -1)
 	}
 
 	// Strategy 2: No valid cached file found, create new one (avoid re-hashing)
+	log.Debug().Str("originalPath", originalPath).Msg("filecopy: creating new temp copy")
 	tempPath := fm.generateTempPathWithHash(originalPath, expectedDataHash)
 
 	if err := fm.atomicCopyFile(originalPath, tempPath); err != nil {
+		log.Debug().Err(err).Str("src", originalPath).Str("dst", tempPath).Msg("filecopy: atomic copy failed")
 		return "", err
 	}
+	log.Debug().Str("tempPath", tempPath).Msg("filecopy: temp copy created successfully")
 
 	// Add to index using LoadOrStore to keep cacheSize accurate under races
 	newEntry := &FileIndexEntry{
@@ -826,6 +845,7 @@ func (fm *FileCopyManager) atomicCopyFile(src, dst string) error {
 	// Use buffered copy for better performance with large files
 	buf := make([]byte, 256*1024) // 256KB buffer
 	if _, err = io.CopyBuffer(dstFile, srcFile, buf); err != nil {
+		log.Debug().Err(err).Str("src", src).Str("dst", tempDst).Msg("filecopy: copy buffer failed")
 		return fmt.Errorf("failed to copy file contents: %w", err)
 	}
 
@@ -854,6 +874,7 @@ func (fm *FileCopyManager) atomicCopyFile(src, dst string) error {
 
 	// Atomic rename to final destination
 	if err = os.Rename(tempDst, dst); err != nil {
+		log.Debug().Err(err).Str("temp", tempDst).Str("dst", dst).Msg("filecopy: rename failed")
 		return fmt.Errorf("failed to rename temporary file: %w", err)
 	}
 
@@ -918,6 +939,7 @@ func Shutdown() {
 // Shutdown performs complete cleanup by removing all temporary files and cache entries.
 // This method ensures clean resource deallocation with proper goroutine lifecycle management.
 func (fm *FileCopyManager) Shutdown() {
+	log.Debug().Str("instanceID", fm.instanceID).Msg("filecopy: shutting down manager")
 	// Stop periodic cleanup first
 	fm.cancel()
 

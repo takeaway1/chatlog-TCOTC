@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 // FingerprintForGroups calculates a stable fingerprint for the provided file groups.
@@ -15,6 +17,7 @@ import (
 // modification timestamp, and hashes the aggregated metadata. If none of the
 // requested groups contain files, an empty string is returned without error.
 func (d *DBManager) FingerprintForGroups(names ...string) (string, error) {
+	log.Debug().Strs("groups", names).Msg("dbm: calculating fingerprint for groups")
 	if len(names) == 0 {
 		return "", nil
 	}
@@ -34,8 +37,10 @@ func (d *DBManager) FingerprintForGroups(names ...string) (string, error) {
 			// When the underlying error indicates the files are simply missing,
 			// treat it as an empty group rather than a hard failure.
 			if strings.Contains(err.Error(), "db file not found") {
+				log.Debug().Str("group", name).Msg("dbm: group not found, skipping for fingerprint")
 				continue
 			}
+			log.Debug().Err(err).Str("group", name).Msg("dbm: failed to get db path for fingerprint")
 			return "", err
 		}
 
@@ -43,8 +48,10 @@ func (d *DBManager) FingerprintForGroups(names ...string) (string, error) {
 			info, statErr := os.Stat(p)
 			if statErr != nil {
 				if os.IsNotExist(statErr) {
+					log.Debug().Str("path", p).Msg("dbm: file missing during fingerprint calculation")
 					continue
 				}
+				log.Debug().Err(statErr).Str("path", p).Msg("dbm: stat failed during fingerprint calculation")
 				return "", statErr
 			}
 
@@ -79,5 +86,7 @@ func (d *DBManager) FingerprintForGroups(names ...string) (string, error) {
 		fmt.Fprintf(hasher, "%s|%s|%d|%d;", e.group, e.rel, e.size, e.mod)
 	}
 
-	return hex.EncodeToString(hasher.Sum(nil)), nil
+	hash := hex.EncodeToString(hasher.Sum(nil))
+	log.Debug().Str("hash", hash).Msg("dbm: fingerprint calculated")
+	return hash, nil
 }
