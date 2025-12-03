@@ -734,9 +734,13 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 		err := rows.Scan(
 			&contactV4.UserName,
 			&contactV4.LocalType,
+			&contactV4.Flag,
 			&contactV4.Alias,
 			&contactV4.Remark,
 			&contactV4.NickName,
+			&contactV4.BigHeadUrl,
+			&contactV4.SmallHeadUrl,
+			&contactV4.HeadImgMd5,
 		)
 
 		if err != nil {
