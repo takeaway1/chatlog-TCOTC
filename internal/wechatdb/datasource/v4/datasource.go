@@ -2,7 +2,7 @@ package v4
 
 import (
 	"sync"
-
+	"context"
 	"github.com/fsnotify/fsnotify"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
@@ -109,4 +109,8 @@ func (ds *DataSource) SetCallback(group string, callback func(event fsnotify.Eve
 
 func (ds *DataSource) Close() error {
 	return ds.dbm.Close()
+}
+
+func (ds *DataSource) GetDatasetFingerprint(context.Context) (string, error) {
+	return ds.dbm.FingerprintForGroups(Message)
 }
