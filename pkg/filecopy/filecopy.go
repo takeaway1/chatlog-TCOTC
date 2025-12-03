@@ -52,6 +52,12 @@ const (
 
 	// MaxBaseNameLen limits base filename length in temp file naming.
 	MaxBaseNameLen = 100
+
+	// LargeFileThreshold defines the size threshold for partial hashing (10MB).
+	LargeFileThreshold = 10 * 1024 * 1024
+
+	// lockShardSize defines the number of shards for path locking.
+	lockShardSize = 256
 )
 
 // Version detection policy for generating data hash in file naming and cache keys.
@@ -84,8 +90,8 @@ type FileCopyManager struct {
 	ctx        context.Context    // Context for goroutine lifecycle management
 	cancel     context.CancelFunc // Cancel function for graceful shutdown
 	wg         sync.WaitGroup     // WaitGroup for goroutine synchronization
-	cacheSize  int64              // Current number of cached entries (atomic)
-	pathLocks  sync.Map           // Per-original-path locks to prevent duplicate concurrent copies
+	cacheSize  int64                     // Current number of cached entries (atomic)
+	locks      [lockShardSize]sync.Mutex // Striped locks to prevent duplicate concurrent copies
 }
 
 // FileIndexEntry represents an indexed temporary file with comprehensive metadata.
@@ -699,12 +705,13 @@ func (fm *FileCopyManager) GetTempCopy(originalPath string) (string, error) {
 
 // getPathLock returns a per-original-path mutex to serialize copy operations for the same source.
 func (fm *FileCopyManager) getPathLock(key string) *sync.Mutex {
-	if v, ok := fm.pathLocks.Load(key); ok {
-		return v.(*sync.Mutex)
+	// FNV-1a hash
+	var hash uint32 = 2166136261
+	for i := 0; i < len(key); i++ {
+		hash ^= uint32(key[i])
+		hash *= 16777619
 	}
-	m := &sync.Mutex{}
-	actual, _ := fm.pathLocks.LoadOrStore(key, m)
-	return actual.(*sync.Mutex)
+	return &fm.locks[hash%lockShardSize]
 }
 
 // generateTempPath creates a unique temporary file path using a structured naming convention.
@@ -905,17 +912,43 @@ func (fm *FileCopyManager) generateVersionKey(instanceID, baseName, ext, pathHas
 
 // hashFileContent generates a fast hash of file content for integrity verification.
 // Uses xxhash for complete file hashing, providing excellent performance (7120+ MB/s).
-func (fm *FileCopyManager) hashFileContent(filePath string, _ int64) (string, error) {
+func (fm *FileCopyManager) hashFileContent(filePath string, size int64) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
 
-	// Use xxhash for complete file hashing - benchmark shows 3.3x faster than SHA-256
 	h := xxhash.New()
-	if _, err := io.Copy(h, file); err != nil {
-		return "", err
+
+	if size > LargeFileThreshold {
+		// Partial hashing for large files: 1MB head + 1MB tail
+		const chunkSize = 1024 * 1024
+
+		// Read head
+		if _, err := io.CopyN(h, file, chunkSize); err != nil && err != io.EOF {
+			return "", err
+		}
+
+		// Seek to tail if file is large enough
+		if size > 2*chunkSize {
+			if _, err := file.Seek(-chunkSize, io.SeekEnd); err != nil {
+				return "", err
+			}
+			if _, err := io.Copy(h, file); err != nil {
+				return "", err
+			}
+		} else if size > chunkSize {
+			// If file is between 1MB and 2MB, just read the rest
+			if _, err := io.Copy(h, file); err != nil {
+				return "", err
+			}
+		}
+	} else {
+		// Use xxhash for complete file hashing - benchmark shows 3.3x faster than SHA-256
+		if _, err := io.Copy(h, file); err != nil {
+			return "", err
+		}
 	}
 
 	return fmt.Sprintf("%x", h.Sum64()), nil

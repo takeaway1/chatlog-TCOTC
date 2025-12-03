@@ -93,6 +93,12 @@ func (d *V3Decryptor) Decrypt(ctx context.Context, dbfile string, hexKey string,
 	// 计算密钥
 	encKey, macKey := d.deriveKeys(key, dbInfo.Salt)
 
+	// 初始化页面解密器
+	pageDecryptor, err := common.NewPageDecryptor(encKey, macKey, d.hashFunc, d.hmacSize, d.reserve, d.pageSize)
+	if err != nil {
+		return err
+	}
+
 	// 打开数据库文件
 	dbFile, err := os.Open(dbfile)
 	if err != nil {
@@ -149,7 +155,7 @@ func (d *V3Decryptor) Decrypt(ctx context.Context, dbfile string, hexKey string,
 		}
 
 		// 解密页面
-		decryptedData, err := common.DecryptPage(pageBuf, encKey, macKey, curPage, d.hashFunc, d.hmacSize, d.reserve, d.pageSize)
+		decryptedData, err := pageDecryptor.Decrypt(pageBuf, curPage)
 		if err != nil {
 			return err
 		}

@@ -136,3 +136,71 @@ func DecryptPage(pageBuf []byte, encKey []byte, macKey []byte, pageNum int64, ha
 
 	return decryptedPage, nil
 }
+
+// PageDecryptor 封装解密上下文，避免重复初始化
+type PageDecryptor struct {
+	block    cipher.Block
+	macKey   []byte
+	hashFunc func() hash.Hash
+	hmacSize int
+	reserve  int
+	pageSize int
+	buf      []byte
+}
+
+// NewPageDecryptor 创建新的 PageDecryptor
+func NewPageDecryptor(encKey, macKey []byte, hashFunc func() hash.Hash, hmacSize, reserve, pageSize int) (*PageDecryptor, error) {
+	block, err := aes.NewCipher(encKey)
+	if err != nil {
+		return nil, errors.DecryptCreateCipherFailed(err)
+	}
+	return &PageDecryptor{
+		block:    block,
+		macKey:   macKey,
+		hashFunc: hashFunc,
+		hmacSize: hmacSize,
+		reserve:  reserve,
+		pageSize: pageSize,
+		buf:      make([]byte, pageSize),
+	}, nil
+}
+
+// Decrypt 解密单个页面
+func (pd *PageDecryptor) Decrypt(pageBuf []byte, pageNum int64) ([]byte, error) {
+	offset := 0
+	if pageNum == 0 {
+		offset = SaltSize
+	}
+
+	mac := hmac.New(pd.hashFunc, pd.macKey)
+	mac.Write(pageBuf[offset : pd.pageSize-pd.reserve+IVSize])
+
+	pageNoBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(pageNoBytes, uint32(pageNum+1))
+	mac.Write(pageNoBytes)
+
+	hashMac := mac.Sum(nil)
+
+	hashMacStartOffset := pd.pageSize - pd.reserve + IVSize
+	hashMacEndOffset := hashMacStartOffset + pd.hmacSize
+
+	if !bytes.Equal(hashMac, pageBuf[hashMacStartOffset:hashMacEndOffset]) {
+		return nil, errors.ErrDecryptHashVerificationFailed
+	}
+
+	iv := pageBuf[pd.pageSize-pd.reserve : pd.pageSize-pd.reserve+IVSize]
+
+	mode := cipher.NewCBCDecrypter(pd.block, iv)
+
+	length := pd.pageSize - pd.reserve - offset
+
+	// 复用 buffer
+	copy(pd.buf[:length], pageBuf[offset:pd.pageSize-pd.reserve])
+
+	mode.CryptBlocks(pd.buf[:length], pd.buf[:length])
+
+	// 复制保留区数据
+	copy(pd.buf[length:], pageBuf[pd.pageSize-pd.reserve:pd.pageSize])
+
+	return pd.buf[:length+pd.reserve], nil
+}
