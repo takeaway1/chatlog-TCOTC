@@ -34,8 +34,9 @@ func (s *Service) handleSearch(c *gin.Context) {
 		Start  string `form:"start"`
 		End    string `form:"end"`
 		Limit  int    `form:"limit"`
-		Offset int    `form:"offset"`
-		Format string `form:"format"`
+		Offset    int    `form:"offset"`
+		Format    string `form:"format"`
+		SkipTotal bool   `form:"skip_total"`
 	}{}
 
 	if err := c.BindQuery(&params); err != nil {
@@ -61,9 +62,10 @@ func (s *Service) handleSearch(c *gin.Context) {
 	req := &model.SearchRequest{
 		Query:  query,
 		Talker: talker,
-		Sender: strings.TrimSpace(params.Sender),
-		Limit:  limit,
-		Offset: offset,
+		Sender:    strings.TrimSpace(params.Sender),
+		Limit:     limit,
+		Offset:    offset,
+		SkipTotal: params.SkipTotal,
 	}
 
 	// 解析时间范围

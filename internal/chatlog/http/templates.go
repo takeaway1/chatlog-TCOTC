@@ -11,20 +11,20 @@ import (
 
 // 模板缓存
 var (
-	templateCache       = make(map[string]string)
+	templateCache       = make(map[string]*template.Template)
 	templateCacheLock   sync.RWMutex
 	previewHTMLSnippet  string
 	previewSnippetOnce  sync.Once
 )
 
-// loadTemplate 从嵌入的文件系统加载模板
-func loadTemplate(name string) (string, error) {
+// getTemplate 从嵌入的文件系统加载并解析模板
+func getTemplate(name string) (*template.Template, error) {
 	log.Debug().Str("template", name).Msg("loading template")
 	templateCacheLock.RLock()
-	if content, ok := templateCache[name]; ok {
+	if tmpl, ok := templateCache[name]; ok {
 		log.Debug().Str("template", name).Msg("template found in cache")
 		templateCacheLock.RUnlock()
-		return content, nil
+		return tmpl, nil
 	}
 	templateCacheLock.RUnlock()
 
@@ -32,32 +32,39 @@ func loadTemplate(name string) (string, error) {
 	data, err := EFS.ReadFile("static/templates/" + name)
 	if err != nil {
 		log.Debug().Err(err).Str("template", name).Msg("failed to read template file")
-		return "", err
+		return nil, err
 	}
 
 	content := string(data)
+	tmpl, err := template.New(name).Parse(content)
+	if err != nil {
+		log.Debug().Err(err).Str("template", name).Msg("failed to parse template")
+		return nil, err
+	}
 
 	// 缓存模板内容
 	templateCacheLock.Lock()
-	templateCache[name] = content
+	templateCache[name] = tmpl
 	templateCacheLock.Unlock()
 
 	log.Debug().Str("template", name).Msg("template loaded and cached")
-	return content, nil
+	return tmpl, nil
 }
 
 // getPreviewHTMLSnippet 获取完整的预览 HTML 片段
 func getPreviewHTMLSnippet() string {
-	base, err := loadTemplate("preview-base.html")
+	baseData, err := EFS.ReadFile("static/templates/preview-base.html")
 	if err != nil {
 		// 如果加载失败，返回空字符串或者默认内容
 		return ""
 	}
+	base := string(baseData)
 
-	voice, err := loadTemplate("voice-transcribe.html")
+	voiceData, err := EFS.ReadFile("static/templates/voice-transcribe.html")
 	if err != nil {
 		return base
 	}
+	voice := string(voiceData)
 
 	return base + voice
 }
@@ -65,14 +72,8 @@ func getPreviewHTMLSnippet() string {
 // writeChatlogHTMLHeader 写入聊天记录 HTML 头部
 func writeChatlogHTMLHeader(w io.Writer, title string) error {
 	log.Debug().Str("title", title).Msg("writing chatlog HTML header")
-	tmplContent, err := loadTemplate("chatlog-head.html")
+	tmpl, err := getTemplate("chatlog-head.html")
 	if err != nil {
-		return err
-	}
-
-	tmpl, err := template.New("chatlog-head").Parse(tmplContent)
-	if err != nil {
-		log.Debug().Err(err).Msg("failed to parse chatlog-head template")
 		return err
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +31,12 @@ type Service struct {
 
 	speechTranscriber whisper.Transcriber
 	speechOptions     whisper.Options
+
+	dashboardCache struct {
+		data   *Dashboard
+		expiry time.Time
+		mu     sync.RWMutex
+	}
 }
 
 type Config interface {

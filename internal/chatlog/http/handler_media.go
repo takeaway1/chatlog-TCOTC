@@ -41,6 +41,7 @@ func (s *Service) handleMedia(c *gin.Context, _type string) {
 		if strings.Contains(k, "/") {
 			if absolutePath, err := s.findPath(_type, k); err == nil {
 				log.Debug().Str("path", absolutePath).Msg("found absolute path for media")
+				c.Header("Cache-Control", "public, max-age=31536000, immutable")
 				c.Redirect(http.StatusFound, "/data/"+absolutePath)
 				return
 			}
@@ -70,6 +71,7 @@ func (s *Service) handleMedia(c *gin.Context, _type string) {
 			return
 		default:
 			log.Debug().Str("path", media.Path).Msg("redirecting to media path")
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
 			c.Redirect(http.StatusFound, "/data/"+media.Path)
 			return
 		}
@@ -192,6 +194,7 @@ func (s *Service) handleMediaData(c *gin.Context) {
 	case ext == ".dat":
 		s.HandleDatFile(c, absolutePath)
 	default:
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
 		c.File(absolutePath)
 	}
 }
@@ -208,11 +211,13 @@ func (s *Service) HandleDatFile(c *gin.Context, path string) {
 	out, ext, err := dat2img.Dat2Image(b)
 	if err != nil {
 		log.Debug().Err(err).Str("path", path).Msg("failed to convert DAT file")
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
 		c.File(path)
 		return
 	}
 	log.Debug().Str("ext", ext).Msg("DAT file converted")
 
+	c.Header("Cache-Control", "public, max-age=31536000, immutable")
 	switch ext {
 	case "jpg", "jpeg":
 		c.Data(http.StatusOK, "image/jpeg", out)
@@ -235,10 +240,12 @@ func (s *Service) HandleVoice(c *gin.Context, data []byte) {
 	out, err := silk.Silk2MP3(data)
 	if err != nil {
 		log.Debug().Err(err).Msg("failed to convert silk to mp3")
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
 		c.Data(http.StatusOK, "audio/silk", data)
 		return
 	}
 	log.Debug().Msg("voice converted to mp3")
+	c.Header("Cache-Control", "public, max-age=31536000, immutable")
 	c.Data(http.StatusOK, "audio/mp3", out)
 }
 

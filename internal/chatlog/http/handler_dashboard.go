@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -163,12 +164,29 @@ type groupAggregate struct {
 // handleDashboard 处理 Dashboard 数据请求
 func (s *Service) handleDashboard(c *gin.Context) {
 	log.Debug().Msg("handling dashboard request")
+
+	// Check cache
+	s.dashboardCache.mu.RLock()
+	if s.dashboardCache.data != nil && time.Now().Before(s.dashboardCache.expiry) && c.Query("refresh") != "1" {
+		log.Debug().Msg("returning cached dashboard data")
+		c.JSON(http.StatusOK, s.dashboardCache.data)
+		s.dashboardCache.mu.RUnlock()
+		return
+	}
+	s.dashboardCache.mu.RUnlock()
+
 	resp, err := s.buildDashboardData()
 	if err != nil {
 		log.Debug().Err(err).Msg("failed to build dashboard data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build dashboard", "detail": err.Error()})
 		return
 	}
+
+	// Update cache
+	s.dashboardCache.mu.Lock()
+	s.dashboardCache.data = resp
+	s.dashboardCache.expiry = time.Now().Add(5 * time.Minute)
+	s.dashboardCache.mu.Unlock()
 
 	// 持久化 dashboard
 	s.saveDashboard(resp)
@@ -192,21 +210,55 @@ func (s *Service) handleDashboard(c *gin.Context) {
 // buildDashboardData 构建 Dashboard 数据
 func (s *Service) buildDashboardData() (*Dashboard, error) {
 	log.Debug().Msg("building dashboard data")
-	// 获取基础统计数据
-	gstats, err := s.db.GetDB().GlobalMessageStats()
+
+	var (
+		gstats                    *model.GlobalMessageStats
+		groupCounts               map[string]int64
+		dbSizeBytes, dirSizeBytes int64
+		currentUser               string
+		accountID                 string
+		err                       error
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(4)
+
+	// 1. 获取基础统计数据
+	go func() {
+		defer wg.Done()
+		var e error
+		gstats, e = s.db.GetDB().GlobalMessageStats()
+		if e != nil {
+			err = fmt.Errorf("global stats failed: %w", e)
+		}
+	}()
+
+	// 2. 获取群组消息计数
+	go func() {
+		defer wg.Done()
+		groupCounts, _ = s.db.GetDB().GroupMessageCounts()
+	}()
+
+	// 3. 计算文件和目录大小
+	go func() {
+		defer wg.Done()
+		dbSizeBytes, dirSizeBytes = s.calculateStorageSizes()
+	}()
+
+	// 4. 获取当前用户信息
+	go func() {
+		defer wg.Done()
+		currentUser, accountID = s.extractCurrentUser()
+	}()
+
+	wg.Wait()
+
 	if err != nil {
-		return nil, fmt.Errorf("global stats failed: %w", err)
+		return nil, err
 	}
 
-	groupCounts, _ := s.db.GetDB().GroupMessageCounts()
-
-	// 计算文件和目录大小
-	dbSizeBytes, dirSizeBytes := s.calculateStorageSizes()
 	dbSize := roundMB(dbSizeBytes)
 	dirSize := roundMB(dirSizeBytes)
-
-	// 获取当前用户信息
-	currentUser, accountID := s.extractCurrentUser()
 
 	// 构建消息类型统计
 	msgTypes := s.buildMessageTypeStats(gstats)
