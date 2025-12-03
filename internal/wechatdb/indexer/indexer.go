@@ -521,6 +521,8 @@ func (s *storeIndex) indexMessages(messages []*model.Message) error {
 		return nil
 	}
 
+	log.Debug().Int("count", len(messages)).Msg("store index: indexing messages")
+
 	docs := make([]*document, 0, len(messages))
 	maxSeq := make(map[string]int64)
 
@@ -607,6 +609,8 @@ func (s *storeIndex) search(match string, talkers []string, senders []string, st
 	if s == nil {
 		return nil, 0, errIndexNotInitialized
 	}
+
+	log.Debug().Str("match", match).Int("limit", limit).Int("offset", offset).Bool("skipTotal", skipTotal).Msg("store index: searching")
 
 	s.mu.RLock()
 	db := s.db

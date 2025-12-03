@@ -29,6 +29,8 @@ func (r *Repository) initIndex() error {
 		return nil
 	}
 
+	log.Debug().Str("path", r.indexPath).Msg("initializing fts index")
+
 	idx, err := indexer.Open(r.indexPath)
 	if err != nil {
 		return err
@@ -66,6 +68,7 @@ func (r *Repository) ensureIndex(ctx context.Context) (bool, error) {
 	}
 
 	if !versionMatched {
+		log.Debug().Msg("index version mismatch, resetting status")
 		r.indexMu.Lock()
 		r.indexStatus.Ready = false
 		r.indexStatus.Progress = 0
@@ -77,14 +80,18 @@ func (r *Repository) ensureIndex(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	log.Debug().Str("fingerprint", fp).Msg("dataset fingerprint calculated")
+
 	if strings.TrimSpace(fp) == "" {
 		return false, fmt.Errorf("dataset fingerprint is empty")
 	}
 
 	storedFP := r.index.Fingerprint()
+	log.Debug().Str("stored_fingerprint", storedFP).Msg("index stored fingerprint")
 
 	r.indexMu.Lock()
 	if (r.indexFingerprint == fp || storedFP == fp) && !r.indexStatus.InProgress {
+		log.Debug().Msg("index is up to date")
 		if r.indexFingerprint != fp {
 			r.indexFingerprint = fp
 			r.indexStatus.Ready = true
@@ -105,9 +112,11 @@ func (r *Repository) ensureIndex(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 	if r.indexStatus.InProgress {
+		log.Debug().Msg("index build already in progress")
 		r.indexMu.Unlock()
 		return false, nil
 	}
+	log.Debug().Msg("starting index rebuild")
 	r.indexStatus.InProgress = true
 	r.indexStatus.Ready = false
 	r.indexStatus.Progress = 0
@@ -117,6 +126,7 @@ func (r *Repository) ensureIndex(ctx context.Context) (bool, error) {
 
 	err = r.rebuildIndex(ctx, fp)
 	if err != nil {
+		log.Debug().Err(err).Msg("index rebuild failed")
 		if err == context.Canceled || errors.Is(err, context.Canceled) {
 			r.indexMu.Lock()
 			r.indexStatus.InProgress = false
@@ -131,6 +141,7 @@ func (r *Repository) ensureIndex(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
+	log.Debug().Msg("index rebuild completed")
 	r.indexMu.Lock()
 	r.indexFingerprint = fp
 	r.indexStatus.InProgress = false
@@ -143,6 +154,7 @@ func (r *Repository) ensureIndex(ctx context.Context) (bool, error) {
 }
 
 func (r *Repository) rebuildIndex(ctx context.Context, fp string) error {
+	log.Debug().Str("fingerprint", fp).Msg("rebuilding index")
 	indexable, ok := r.ds.(ftsIndexable)
 	if !ok {
 		return fmt.Errorf("datasource does not support fts indexing")
@@ -152,6 +164,7 @@ func (r *Repository) rebuildIndex(ctx context.Context, fp string) error {
 	if err != nil {
 		return err
 	}
+	log.Debug().Int("stores", len(stores)).Msg("found message stores")
 
 	if err := r.index.Reset(); err != nil {
 		return err
@@ -164,6 +177,7 @@ func (r *Repository) rebuildIndex(ctx context.Context, fp string) error {
 	}
 
 	if len(stores) == 0 {
+		log.Debug().Msg("no message stores found, skipping index build")
 		if err := r.index.UpdateFingerprint(fp); err != nil {
 			return err
 		}
@@ -249,6 +263,7 @@ func (r *Repository) rebuildIndex(ctx context.Context, fp string) error {
 	if err != nil {
 		return err
 	}
+	log.Debug().Int("talkers", len(talkers)).Msg("found talkers for indexing")
 
 	if len(talkers) == 0 {
 		if err := flushDirty(); err != nil {
@@ -264,6 +279,9 @@ func (r *Repository) rebuildIndex(ctx context.Context, fp string) error {
 
 	total := float64(len(talkers))
 	for i, talker := range talkers {
+		if i%100 == 0 {
+			log.Debug().Int("current", i).Int("total", len(talkers)).Str("talker", talker).Msg("indexing progress")
+		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -346,6 +364,7 @@ func (r *Repository) indexStatusSnapshot() *model.SearchIndexStatus {
 }
 
 func (r *Repository) searchMessagesWithIndex(ctx context.Context, req *model.SearchRequest) (*model.SearchResponse, error) {
+	log.Debug().Interface("req", req).Msg("searching messages with index")
 	makeEmpty := func() *model.SearchResponse {
 		return &model.SearchResponse{
 			Total:      0,
@@ -372,9 +391,11 @@ func (r *Repository) searchMessagesWithIndex(ctx context.Context, req *model.Sea
 
 	ready, err := r.ensureIndex(ctx)
 	if err != nil {
+		log.Debug().Err(err).Msg("ensure index failed during search")
 		return nil, err
 	}
 	if !ready {
+		log.Debug().Msg("index not ready during search")
 		return makeEmpty(), nil
 	}
 
@@ -396,8 +417,10 @@ func (r *Repository) searchMessagesWithIndex(ctx context.Context, req *model.Sea
 	begin := time.Now()
 	hits, total, err := r.index.Search(req, talkers, senders, startUnix, endUnix, req.Offset, req.Limit)
 	if err != nil {
+		log.Debug().Err(err).Msg("index search failed")
 		return nil, err
 	}
+	log.Debug().Int("hits", len(hits)).Int("total", total).Dur("duration", time.Since(begin)).Msg("index search completed")
 
 	mapped := make([]*model.SearchHit, 0, len(hits))
 	for _, hit := range hits {

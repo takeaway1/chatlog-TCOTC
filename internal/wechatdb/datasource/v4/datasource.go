@@ -86,6 +86,7 @@ type DataSource struct {
 }
 
 func New(path string) (*DataSource, error) {
+	log.Debug().Str("path", path).Msg("initializing v4 datasource")
 
 	ds := &DataSource{
 		path:               path,
@@ -107,6 +108,7 @@ func New(path string) (*DataSource, error) {
 	if err := ds.initMessageDbs(); err != nil {
 		return nil, errors.DBInitFailed(err)
 	}
+	log.Debug().Msg("v4 datasource initialized")
 
 	ds.dbm.AddCallback(Message, func(event fsnotify.Event) error {
 		if !event.Op.Has(fsnotify.Create) {
@@ -176,6 +178,7 @@ func (ds *DataSource) LocateMessageStore(msg *model.Message) (*msgstore.Store, e
 }
 
 func (ds *DataSource) initMessageDbs() error {
+	log.Debug().Msg("initializing message dbs")
 	dbPaths, err := ds.dbm.GetDBPath(Message)
 	if err != nil {
 		if strings.Contains(err.Error(), "db file not found") {
@@ -255,6 +258,7 @@ func (ds *DataSource) initMessageDbs() error {
 		log.Warn().Msgf("message db count decreased from %d to %d, skip init", len(ds.messageInfos), len(infos))
 		return nil
 	}
+	log.Debug().Int("count", len(infos)).Msg("found message dbs")
 	ds.messageInfos = infos
 
 	stores := make([]*msgstore.Store, 0, len(infos))
@@ -302,6 +306,7 @@ func (ds *DataSource) getDBInfosForTimeRange(startTime, endTime time.Time) []Mes
 }
 
 func (ds *DataSource) GetMessages(ctx context.Context, startTime, endTime time.Time, talker string, sender string, keyword string, limit, offset int) ([]*model.Message, error) {
+	log.Debug().Str("talker", talker).Time("start", startTime).Time("end", endTime).Msg("GetMessages request")
 	if talker == "" {
 		return nil, errors.ErrTalkerEmpty
 	}
@@ -314,6 +319,7 @@ func (ds *DataSource) GetMessages(ctx context.Context, startTime, endTime time.T
 
 	// 找到时间范围内的数据库文件
 	dbInfos := ds.getDBInfosForTimeRange(startTime, endTime)
+	log.Debug().Int("dbs", len(dbInfos)).Msg("found dbs for time range")
 	if len(dbInfos) == 0 {
 		return nil, errors.TimeRangeNotFound(startTime, endTime)
 	}
@@ -335,6 +341,7 @@ func (ds *DataSource) GetMessages(ctx context.Context, startTime, endTime time.T
 	filteredMessages := []*model.Message{}
 
 	for _, dbInfo := range dbInfos {
+		log.Debug().Str("db", dbInfo.FilePath).Msg("querying db")
 		// 检查上下文是否已取消
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -443,6 +450,8 @@ func (ds *DataSource) GetMessages(ctx context.Context, startTime, endTime time.T
 					// 已经获取了足够的消息，可以提前返回
 					rows.Close()
 
+					log.Debug().Int("count", len(filteredMessages)).Msg("GetMessages result")
+
 					// 对所有消息按时间排序
 					sort.Slice(filteredMessages, func(i, j int) bool {
 						return filteredMessages[i].Seq < filteredMessages[j].Seq
@@ -456,6 +465,7 @@ func (ds *DataSource) GetMessages(ctx context.Context, startTime, endTime time.T
 					if end > len(filteredMessages) {
 						end = len(filteredMessages)
 					}
+					log.Debug().Int("count", len(filteredMessages[offset:end])).Msg("GetMessages result (early exit)")
 					return filteredMessages[offset:end], nil
 				}
 			}
@@ -484,6 +494,7 @@ func (ds *DataSource) GetMessages(ctx context.Context, startTime, endTime time.T
 }
 
 func (ds *DataSource) ListTalkers(ctx context.Context) ([]string, error) {
+	log.Debug().Msg("ListTalkers request")
 	talkerSet := make(map[string]struct{})
 	add := func(name string) {
 		name = strings.TrimSpace(name)
@@ -577,10 +588,12 @@ func (ds *DataSource) ListTalkers(ctx context.Context) ([]string, error) {
 		talkers = append(talkers, username)
 	}
 	sort.Strings(talkers)
+	log.Debug().Int("count", len(talkers)).Msg("ListTalkers result")
 	return talkers, nil
 }
 
 func (ds *DataSource) IterateMessages(ctx context.Context, talkers []string, handler func(*model.Message) error) error {
+	log.Debug().Int("talkers", len(talkers)).Msg("IterateMessages request")
 	if handler == nil {
 		return errors.InvalidArg("handler")
 	}
@@ -603,6 +616,7 @@ func (ds *DataSource) IterateMessages(ctx context.Context, talkers []string, han
 	}
 
 	for _, info := range ds.messageInfos {
+		log.Debug().Str("db", info.FilePath).Msg("iterating db")
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -669,6 +683,7 @@ func (ds *DataSource) IterateMessages(ctx context.Context, talkers []string, han
 		}
 	}
 
+	log.Debug().Msg("IterateMessages completed")
 	return nil
 }
 

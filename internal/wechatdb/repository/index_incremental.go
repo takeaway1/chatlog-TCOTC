@@ -17,7 +17,10 @@ func (r *Repository) IndexMessages(ctx context.Context, messages []*model.Messag
 		return nil
 	}
 
+	log.Debug().Int("count", len(messages)).Msg("incremental index: received messages")
+
 	if r.index == nil {
+		log.Debug().Msg("incremental index: index not initialized, skipping")
 		return nil
 	}
 
@@ -26,6 +29,7 @@ func (r *Repository) IndexMessages(ctx context.Context, messages []*model.Messag
 	r.indexMu.Unlock()
 
 	if status.InProgress || !status.Ready {
+		log.Debug().Bool("in_progress", status.InProgress).Bool("ready", status.Ready).Msg("incremental index: index not ready, skipping")
 		return nil
 	}
 
@@ -54,8 +58,11 @@ func (r *Repository) IndexMessages(ctx context.Context, messages []*model.Messag
 	}
 
 	if len(batches) == 0 {
+		log.Debug().Msg("incremental index: no valid batches to index")
 		return nil
 	}
+
+	log.Debug().Int("batches", len(batches)).Msg("incremental index: processing batches")
 
 	for id, batch := range batches {
 		store := stores[id]
@@ -85,6 +92,8 @@ func (r *Repository) IndexMessages(ctx context.Context, messages []*model.Messag
 	r.indexFingerprint = fp
 	r.indexStatus.LastCompletedAt = time.Now()
 	r.indexMu.Unlock()
+
+	log.Debug().Str("fingerprint", fp).Msg("incremental index: completed successfully")
 
 	return nil
 }

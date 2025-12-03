@@ -11,6 +11,7 @@ import (
 
 // SearchMessages 执行全文检索，并在返回前补充联系人/群聊信息。
 func (r *Repository) SearchMessages(ctx context.Context, req *model.SearchRequest) (*model.SearchResponse, error) {
+	log.Debug().Interface("req", req).Msg("SearchMessages request")
 	if req == nil {
 		return nil, errors.InvalidArg("request")
 	}
@@ -37,11 +38,13 @@ func (r *Repository) SearchMessages(ctx context.Context, req *model.SearchReques
 
 	resp, err := r.searchMessagesWithIndex(ctx, nReq)
 	if err != nil {
+		log.Debug().Err(err).Msg("searchMessagesWithIndex failed")
 		return nil, err
 	}
 	if resp == nil {
 		resp = &model.SearchResponse{Hits: []*model.SearchHit{}, Limit: nReq.Limit, Offset: nReq.Offset}
 	}
+	log.Debug().Int("hits", len(resp.Hits)).Int("total", resp.Total).Msg("searchMessagesWithIndex success")
 
 	// Enrich message metadata（头像、群昵称、显示名等）
 	messages := make([]*model.Message, 0, len(resp.Hits))

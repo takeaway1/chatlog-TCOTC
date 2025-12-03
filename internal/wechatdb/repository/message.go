@@ -13,12 +13,15 @@ import (
 
 // GetMessages 实现 Repository 接口的 GetMessages 方法
 func (r *Repository) GetMessages(ctx context.Context, startTime, endTime time.Time, talker string, sender string, keyword string, limit, offset int) ([]*model.Message, error) {
+	log.Debug().Str("talker", talker).Str("sender", sender).Str("keyword", keyword).Int("limit", limit).Int("offset", offset).Msg("GetMessages request")
 
 	talker, sender = r.parseTalkerAndSender(ctx, talker, sender)
 	messages, err := r.ds.GetMessages(ctx, startTime, endTime, talker, sender, keyword, limit, offset)
 	if err != nil {
+		log.Debug().Err(err).Msg("GetMessages failed")
 		return nil, err
 	}
+	log.Debug().Int("count", len(messages)).Msg("GetMessages success")
 
 	// 补充消息信息
 	if err := r.EnrichMessages(ctx, messages); err != nil {
@@ -30,6 +33,7 @@ func (r *Repository) GetMessages(ctx context.Context, startTime, endTime time.Ti
 
 // EnrichMessages 补充消息的额外信息
 func (r *Repository) EnrichMessages(ctx context.Context, messages []*model.Message) error {
+	log.Debug().Int("count", len(messages)).Msg("EnrichMessages")
 	r.cacheMu.RLock()
 	defer r.cacheMu.RUnlock()
 
@@ -64,6 +68,7 @@ func (r *Repository) enrichMessage(msg *model.Message) {
 }
 
 func (r *Repository) parseTalkerAndSender(ctx context.Context, talker, sender string) (string, string) {
+	log.Debug().Str("talker", talker).Str("sender", sender).Msg("parseTalkerAndSender input")
 	r.cacheMu.RLock()
 	defer r.cacheMu.RUnlock()
 
@@ -113,5 +118,6 @@ func (r *Repository) parseTalkerAndSender(ctx context.Context, talker, sender st
 		sender = strings.Join(senders, ",")
 	}
 
+	log.Debug().Str("talker", talker).Str("sender", sender).Msg("parseTalkerAndSender output")
 	return talker, sender
 }
