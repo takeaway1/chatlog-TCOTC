@@ -44,8 +44,8 @@ func (w *SSEWriter) WriteMessage(data string) {
 }
 
 func (w *SSEWriter) WriteEvent(event string, data string) {
-	w.c.Writer.WriteString(fmt.Sprintf("event: %s\n", event))
-	w.c.Writer.WriteString(fmt.Sprintf("data: %s\n\n", data))
+	msg := fmt.Sprintf("event: %s\ndata: %s\n\n", event, data)
+	w.c.Writer.WriteString(msg)
 	w.c.Writer.Flush()
 }
 
@@ -64,8 +64,8 @@ func (w *SSEWriter) ping() {
 // event: endpoint
 // data: /message?sessionId=285d67ee-1c17-40d9-ab03-173d5ff48419
 func (w *SSEWriter) WriteEndpoing() {
-	w.c.Writer.WriteString(fmt.Sprintf("event: endpoint\n"))
-	w.c.Writer.WriteString(fmt.Sprintf("data: /message?sessionId=%s\n\n", w.id))
+	msg := fmt.Sprintf("event: endpoint\ndata: /message?sessionId=%s\n\n", w.id)
+	w.c.Writer.WriteString(msg)
 	w.c.Writer.Flush()
 }
 

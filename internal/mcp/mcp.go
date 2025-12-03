@@ -15,39 +15,34 @@ const (
 )
 
 type MCP struct {
-	sessions  map[string]*Session
-	sessionMu sync.Mutex
+	sessions sync.Map
 
 	ProcessChan chan ProcessCtx
 }
 
 func NewMCP() *MCP {
 	return &MCP{
-		sessions:    make(map[string]*Session),
 		ProcessChan: make(chan ProcessCtx, ProcessChanCap),
 	}
 }
 
 func (m *MCP) HandleSSE(c *gin.Context) {
 	id := uuid.New().String()
-	m.sessionMu.Lock()
-	m.sessions[id] = NewSession(c, id)
-	m.sessionMu.Unlock()
+	m.sessions.Store(id, NewSession(c, id))
 
 	c.Stream(func(w io.Writer) bool {
 		<-c.Request.Context().Done()
 		return false
 	})
 
-	m.sessionMu.Lock()
-	delete(m.sessions, id)
-	m.sessionMu.Unlock()
+	m.sessions.Delete(id)
 }
 
 func (m *MCP) GetSession(id string) *Session {
-	m.sessionMu.Lock()
-	defer m.sessionMu.Unlock()
-	return m.sessions[id]
+	if v, ok := m.sessions.Load(id); ok {
+		return v.(*Session)
+	}
+	return nil
 }
 
 func (m *MCP) HandleMessages(c *gin.Context) {
