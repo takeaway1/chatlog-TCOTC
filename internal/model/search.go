@@ -15,6 +15,7 @@ type SearchRequest struct {
 	End    time.Time `json:"end"`
 	Limit  int       `json:"limit"`
 	Offset int       `json:"offset"`
+	SkipTotal bool   `json:"skip_total"`
 }
 
 // Clone 生成请求的浅拷贝，便于在不同层级添加额外参数

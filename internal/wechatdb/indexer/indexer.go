@@ -322,7 +322,7 @@ func (i *Index) Search(req *model.SearchRequest, talkers []string, senders []str
 	combined := make([]*SearchHit, 0, len(stores)*limit)
 	total := 0
 	for _, si := range stores {
-		hits, count, err := si.search(match, talkers, senders, startUnix, endUnix, 0, perStoreLimit)
+		hits, count, err := si.search(match, talkers, senders, startUnix, endUnix, 0, perStoreLimit, req.SkipTotal)
 		if err != nil {
 			log.Debug().Err(err).Msg("store search failed")
 			return nil, 0, err
@@ -492,7 +492,8 @@ last_seq INTEGER NOT NULL
 content,
 content='messages',
 content_rowid='rowid',
-tokenize='unicode61 remove_diacritics 2'
+tokenize='unicode61 remove_diacritics 2',
+prefix='2,3'
 );`,
 		`CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
 INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
@@ -602,7 +603,7 @@ ON CONFLICT(talker) DO UPDATE SET last_seq = CASE WHEN excluded.last_seq > last_
 	return nil
 }
 
-func (s *storeIndex) search(match string, talkers []string, senders []string, startUnix, endUnix int64, offset, limit int) ([]*SearchHit, int, error) {
+func (s *storeIndex) search(match string, talkers []string, senders []string, startUnix, endUnix int64, offset, limit int, skipTotal bool) ([]*SearchHit, int, error) {
 	if s == nil {
 		return nil, 0, errIndexNotInitialized
 	}
@@ -666,8 +667,10 @@ WHERE messages_fts MATCH ?
 	ctx := context.Background()
 
 	var total int
-	if err := db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("count search results: %w", err)
+	if !skipTotal {
+		if err := db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("count search results: %w", err)
+		}
 	}
 
 	rows, err := db.QueryContext(ctx, dataQuery, dataArgs...)
