@@ -801,6 +801,12 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 	return contacts, nil
 }
 
+// GetPinnedUserNames 获取所有置顶的用户名列表 (WeChat 3.x may not support this feature)
+func (ds *DataSource) GetPinnedUserNames(ctx context.Context) ([]string, error) {
+	// WeChat 3.x 不支持置顶功能，返回空列表
+	return []string{}, nil
+}
+
 // GetChatRooms 实现获取群聊信息的方法
 func (ds *DataSource) GetChatRooms(ctx context.Context, key string, limit, offset int) ([]*model.ChatRoom, error) {
 	var query string

@@ -28,6 +28,7 @@ type SessionV4 struct {
 	LastTimestamp         int    `json:"last_timestamp"`
 	LastMsgSender         string `json:"last_msg_sender"`
 	LastSenderDisplayName string `json:"last_sender_display_name"`
+	UnreadCount           int    `json:"unread_count"`
 
 	// Type                     int    `json:"type"`
 	// UnreadCount              int    `json:"unread_count"`
@@ -45,10 +46,12 @@ type SessionV4 struct {
 
 func (s *SessionV4) Wrap() *Session {
 	return &Session{
-		UserName: s.Username,
-		NOrder:   s.LastTimestamp,
-		NickName: s.LastSenderDisplayName,
-		Content:  s.Summary,
-		NTime:    time.Unix(int64(s.LastTimestamp), 0),
+		UserName:     s.Username,
+		NOrder:       s.LastTimestamp,
+		NickName:     s.LastSenderDisplayName,
+		Content:      s.Summary,
+		NTime:        time.Unix(int64(s.LastTimestamp), 0),
+		NUnReadCount: s.UnreadCount,
+		ParentRef:    "",
 	}
 }

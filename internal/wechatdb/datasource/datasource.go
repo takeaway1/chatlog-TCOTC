@@ -24,6 +24,9 @@ type DataSource interface {
 	// 联系人
 	GetContacts(ctx context.Context, key string, limit, offset int) ([]*model.Contact, error)
 
+	// 获取置顶的用户名列表
+	GetPinnedUserNames(ctx context.Context) ([]string, error)
+
 	// 群聊
 	GetChatRooms(ctx context.Context, key string, limit, offset int) ([]*model.ChatRoom, error)
 

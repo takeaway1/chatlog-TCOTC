@@ -749,6 +749,33 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 	return contacts, nil
 }
 
+// GetPinnedUserNames 获取所有置顶的用户名列表
+func (ds *DataSource) GetPinnedUserNames(ctx context.Context) ([]string, error) {
+	query := `SELECT username FROM contact WHERE (flag & 2048) != 0`
+
+	db, err := ds.dbm.GetDB(Contact)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errors.QueryFailed(query, err)
+	}
+	defer rows.Close()
+
+	userNames := []string{}
+	for rows.Next() {
+		var userName string
+		if err := rows.Scan(&userName); err != nil {
+			return nil, errors.ScanRowFailed(err)
+		}
+		userNames = append(userNames, userName)
+	}
+
+	return userNames, nil
+}
+
 // 群聊
 func (ds *DataSource) GetChatRooms(ctx context.Context, key string, limit, offset int) ([]*model.ChatRoom, error) {
 	var query string
