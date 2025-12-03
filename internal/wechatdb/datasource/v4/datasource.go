@@ -698,13 +698,14 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 
 	if key != "" {
 		// 按照关键字查询
-		query = `SELECT username, local_type, alias, remark, nick_name 
-				FROM contact 
+		// When searching by key, allow chatrooms to be found (they might be in contact table)
+		query = `SELECT username, local_type, flag, alias, remark, nick_name, big_head_url, small_head_url, head_img_md5
+				FROM contact
 				WHERE username = ? OR alias = ? OR remark = ? OR nick_name = ?`
 		args = []interface{}{key, key, key, key}
 	} else {
-		// 查询所有联系人
-		query = `SELECT username, local_type, alias, remark, nick_name FROM contact`
+		// 查询所有联系人（排除群聊，避免混淆）
+		query = `SELECT username, local_type, flag, alias, remark, nick_name, big_head_url, small_head_url, head_img_md5 FROM contact`
 	}
 
 	// 添加排序、分页

@@ -1,13 +1,16 @@
 package model
 
 type Contact struct {
-	UserName string `json:"userName"`
-	Alias    string `json:"alias"`
-	Remark   string `json:"remark"`
-	NickName string `json:"nickName"`
-	IsFriend bool   `json:"isFriend"`
-	// AvatarURL is a service-composed URL to fetch avatar image
-	AvatarURL string `json:"avatarUrl,omitempty"`
+	UserName        string `json:"userName"`
+	Alias           string `json:"alias"`
+	Remark          string `json:"remark"`
+	NickName        string `json:"nickName"`
+	IsFriend        bool   `json:"isFriend"`
+	IsPinned        bool   `json:"isPinned"`
+	IsMinimized     bool   `json:"isMinimized"`
+	BigHeadImgUrl   string `json:"bigHeadImgUrl,omitempty"`
+	SmallHeadImgUrl string `json:"smallHeadImgUrl,omitempty"`
+	HeadImgMd5      string `json:"headImgMd5,omitempty"`
 }
 
 // CREATE TABLE Contact(
