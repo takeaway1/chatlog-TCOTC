@@ -81,8 +81,22 @@ func (r *Repository) ensureIndex(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("dataset fingerprint is empty")
 	}
 
+	storedFP := r.index.Fingerprint()
+
 	r.indexMu.Lock()
-	if r.indexFingerprint == fp && r.indexStatus.Ready && !r.indexStatus.InProgress {
+	if (r.indexFingerprint == fp || storedFP == fp) && !r.indexStatus.InProgress {
+		if r.indexFingerprint != fp {
+			r.indexFingerprint = fp
+			r.indexStatus.Ready = true
+			r.indexStatus.Progress = 1
+			lastBuilt := r.index.LastBuilt()
+			if !lastBuilt.IsZero() {
+				r.indexStatus.LastCompletedAt = lastBuilt
+			} else {
+				r.indexStatus.LastCompletedAt = time.Now()
+			}
+		}
+
 		status := r.indexStatus
 		r.indexMu.Unlock()
 		if status.Progress < 1 {
