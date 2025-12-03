@@ -227,7 +227,7 @@ func (s *Service) renderSearchText(c *gin.Context, resp *model.SearchResponse) {
 	c.Writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
-	
+
 	fmt.Fprintf(c.Writer, "关键词: %s\n", resp.Query)
 	
 	talkerLabel := resp.Talker
@@ -239,7 +239,7 @@ func (s *Service) renderSearchText(c *gin.Context, resp *model.SearchResponse) {
 	if resp.Sender != "" {
 		fmt.Fprintf(c.Writer, "发送者: %s\n", resp.Sender)
 	}
-	
+
 	switch {
 	case !resp.Start.IsZero() && !resp.End.IsZero():
 		fmt.Fprintf(c.Writer, "时间: %s ~ %s\n", resp.Start.Format("2006-01-02 15:04:05"), resp.End.Format("2006-01-02 15:04:05"))
@@ -253,7 +253,7 @@ func (s *Service) renderSearchText(c *gin.Context, resp *model.SearchResponse) {
 	
 	fmt.Fprintf(c.Writer, "总命中: %d, 本页: %d\n", resp.Total, len(resp.Hits))
 	fmt.Fprintln(c.Writer, strings.Repeat("-", 60))
-	
+
 	for idx, hit := range resp.Hits {
 		if hit == nil || hit.Message == nil {
 			continue
@@ -265,7 +265,7 @@ func (s *Service) renderSearchText(c *gin.Context, resp *model.SearchResponse) {
 		if msg.TalkerName != "" {
 			title = fmt.Sprintf("%s (%s)", msg.TalkerName, msg.Talker)
 		}
-		
+
 		sender := msg.Sender
 		if msg.IsSelf {
 			sender = "我"
@@ -273,11 +273,11 @@ func (s *Service) renderSearchText(c *gin.Context, resp *model.SearchResponse) {
 		if msg.SenderName != "" {
 			sender = fmt.Sprintf("%s(%s)", msg.SenderName, msg.Sender)
 		}
-		
+
 		fmt.Fprintf(c.Writer, "[%d] %s @ %s\n", idx+1, msg.Time.Format("2006-01-02 15:04:05"), title)
 		fmt.Fprintf(c.Writer, "发送者: %s\n", sender)
 		fmt.Fprintf(c.Writer, "%s\n", msg.PlainTextContent())
-		
+
 		if snippet := strings.TrimSpace(hit.Snippet); snippet != "" {
 			fmt.Fprintf(c.Writer, "Snippet: %s\n", snippet)
 		}
@@ -291,10 +291,10 @@ func (s *Service) renderSearchCSV(c *gin.Context, resp *model.SearchResponse) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=search_%s.csv", time.Now().Format("20060102_150405")))
-	
+
 	csvWriter := csv.NewWriter(c.Writer)
 	csvWriter.Write([]string{"Seq", "Time", "Talker", "TalkerName", "Sender", "SenderName", "Content", "Snippet"})
-	
+
 	for _, hit := range resp.Hits {
 		if hit == nil || hit.Message == nil {
 			continue
@@ -338,7 +338,7 @@ func (s *Service) handleChatlog(c *gin.Context) {
 		errors.Err(c, errors.InvalidArg("time"))
 		return
 	}
-	
+
 	if q.Limit < 0 {
 		q.Limit = 0
 	}
@@ -369,7 +369,7 @@ func (s *Service) handleChatlogGrouped(c *gin.Context, start, end time.Time, sen
 		errors.Err(c, err)
 		return
 	}
-	
+
 	groups := make([]*grouped, 0)
 	for _, sess := range sessionsResp.Items {
 		msgs, err := s.db.GetMessages(start, end, sess.UserName, sender, keyword, 0, 0)
@@ -378,7 +378,7 @@ func (s *Service) handleChatlogGrouped(c *gin.Context, start, end time.Time, sen
 		}
 		groups = append(groups, &grouped{Talker: sess.UserName, TalkerName: sess.NickName, Messages: msgs})
 	}
-	
+
 	switch format {
 	case "html":
 		s.renderChatlogGroupedHTML(c, groups, start, end)
@@ -396,14 +396,14 @@ func (s *Service) renderChatlogGroupedHTML(c *gin.Context, groups []*grouped, st
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writeChatlogHTMLHeaderCompat(c.Writer, "Chatlog")
 	c.Writer.WriteString(fmt.Sprintf("<h2>All Messages %s ~ %s</h2>", start.Format("2006-01-02 15:04:05"), end.Format("2006-01-02 15:04:05")))
-	
+
 	for _, g := range groups {
 		title := g.Talker
 		if g.TalkerName != "" {
 			title = fmt.Sprintf("%s (%s)", g.TalkerName, g.Talker)
 		}
 		c.Writer.WriteString("<details open><summary>" + template.HTMLEscapeString(title) + fmt.Sprintf(" - %d 条消息</summary>", len(g.Messages)))
-		
+
 		for _, m := range g.Messages {
 			m.SetContent("host", c.Request.Host)
 			senderDisplay := m.Sender
@@ -415,14 +415,14 @@ func (s *Service) renderChatlogGroupedHTML(c *gin.Context, groups []*grouped, st
 			} else {
 				senderDisplay = template.HTMLEscapeString(senderDisplay)
 			}
-			
+
 			aurl := template.HTMLEscapeString(s.composeAvatarURL(m.Sender) + "?size=big")
 			timeText := template.HTMLEscapeString(m.Time.Format("2006-01-02 15:04:05"))
 			c.Writer.WriteString("<div class=\"msg\"><div class=\"msg-row\"><img class=\"avatar\" src=\"" + aurl + "\" loading=\"lazy\" alt=\"avatar\" onerror=\"this.style.visibility='hidden'\"/><div class=\"msg-content\"><div class=\"meta\"><span class=\"sender\">" + senderDisplay + "</span><span class=\"time\">" + timeText + "</span></div><pre>" + messageHTMLPlaceholder(m) + "</pre></div></div></div>")
 		}
 		c.Writer.WriteString("</details>")
 	}
-	
+
 	c.Writer.WriteString(getPreviewSnippet())
 	c.Writer.WriteString("</body></html>")
 }
@@ -434,10 +434,10 @@ func (s *Service) renderChatlogGroupedCSV(c *gin.Context, groups []*grouped, sta
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
-	
+
 	csvWriter := csv.NewWriter(c.Writer)
 	csvWriter.Write([]string{"Talker", "TalkerName", "Time", "SenderName", "Sender", "Content"})
-	
+
 	for _, g := range groups {
 		for _, m := range g.Messages {
 			csvWriter.Write([]string{g.Talker, g.TalkerName, m.Time.Format("2006-01-02 15:04:05"), m.SenderName, m.Sender, m.PlainTextContent()})
@@ -452,14 +452,14 @@ func (s *Service) renderChatlogGroupedText(c *gin.Context, groups []*grouped) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
-	
+
 	for _, g := range groups {
 		header := g.Talker
 		if g.TalkerName != "" {
 			header = fmt.Sprintf("%s (%s)", g.TalkerName, g.Talker)
 		}
 		c.Writer.WriteString(header + "\n")
-		
+
 		for _, m := range g.Messages {
 			sender := m.Sender
 			if m.IsSelf {
@@ -482,7 +482,7 @@ func (s *Service) handleChatlogSingle(c *gin.Context, start, end time.Time, talk
 		errors.Err(c, err)
 		return
 	}
-	
+
 	switch format {
 	case "html":
 		s.renderChatlogSingleHTML(c, messages, start, end, talker)
@@ -500,14 +500,14 @@ func (s *Service) renderChatlogSingleHTML(c *gin.Context, messages []*model.Mess
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writeChatlogHTMLHeaderCompat(c.Writer, "Chatlog")
 	c.Writer.WriteString(fmt.Sprintf("<h2>Messages %s ~ %s (%s)</h2>", start.Format("2006-01-02 15:04:05"), end.Format("2006-01-02 15:04:05"), template.HTMLEscapeString(talker)))
-	
+
 	for _, m := range messages {
 		m.SetContent("host", c.Request.Host)
 		c.Writer.WriteString("<div class=\"msg\"><div class=\"msg-row\">")
 		aurl := template.HTMLEscapeString(s.composeAvatarURL(m.Sender) + "?size=big")
 		c.Writer.WriteString("<img class=\"avatar\" src=\"" + aurl + "\" loading=\"lazy\" alt=\"avatar\" onerror=\"this.style.visibility='hidden'\"/>")
 		c.Writer.WriteString("<div class=\"msg-content\"><div class=\"meta\"><span class=\"sender\">")
-		
+
 		if m.SenderName != "" {
 			c.Writer.WriteString(template.HTMLEscapeString(m.SenderName) + "(")
 		}
@@ -515,13 +515,13 @@ func (s *Service) renderChatlogSingleHTML(c *gin.Context, messages []*model.Mess
 		if m.SenderName != "" {
 			c.Writer.WriteString(")")
 		}
-		
+
 		timeText := template.HTMLEscapeString(m.Time.Format("2006-01-02 15:04:05"))
 		c.Writer.WriteString("</span><span class=\"time\">" + timeText + "</span></div><pre>")
 		c.Writer.WriteString(messageHTMLPlaceholder(m))
 		c.Writer.WriteString("</pre></div></div></div>")
 	}
-	
+
 	c.Writer.WriteString(getPreviewSnippet())
 	c.Writer.WriteString("</body></html>")
 }
@@ -533,10 +533,10 @@ func (s *Service) renderChatlogSingleCSV(c *gin.Context, messages []*model.Messa
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
-	
+
 	csvWriter := csv.NewWriter(c.Writer)
 	csvWriter.Write([]string{"Time", "SenderName", "Sender", "TalkerName", "Talker", "Content"})
-	
+
 	for _, m := range messages {
 		csvWriter.Write(m.CSV(c.Request.Host))
 	}
@@ -549,7 +549,7 @@ func (s *Service) renderChatlogSingleText(c *gin.Context, messages []*model.Mess
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
-	
+
 	for _, m := range messages {
 		c.Writer.WriteString(m.PlainText(strings.Contains(talker, ","), util.PerfectTimeFormat(start, end), c.Request.Host) + "\n")
 	}
@@ -569,7 +569,7 @@ func (s *Service) handleContacts(c *gin.Context) {
 		errors.Err(c, err)
 		return
 	}
-	
+
 	q.Keyword = strings.TrimSpace(q.Keyword)
 
 	list, err := s.db.GetContacts(q.Keyword, q.Limit, q.Offset)
@@ -582,14 +582,14 @@ func (s *Service) handleContacts(c *gin.Context) {
 	if format == "" {
 		format = "json"
 	}
-	
+
 	switch format {
 	case "html":
 		s.renderContactsHTML(c, list.Items)
 	case "json":
-		for _, item := range list.Items {
-			item.AvatarURL = s.composeAvatarURL(item.UserName)
-		}
+		// for _, item := range list.Items {
+		// 	item.AvatarURL = s.composeAvatarURL(item.UserName)
+		// }
 		c.JSON(http.StatusOK, list)
 	default:
 		s.renderContactsCSV(c, list.Items, format)
@@ -602,19 +602,19 @@ func (s *Service) renderContactsHTML(c *gin.Context, items []*model.Contact) {
 	c.Writer.WriteHeader(http.StatusOK)
 	c.Writer.Write([]byte(`<style>
   .contacts{font-family:Arial,Helvetica,sans-serif;font-size:14px;}
-  .c-item{display:flex;align-items:center;gap:10px;border:1px solid #ddd;border-radius:6px;padding:6px 8px;margin:6px 0;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);} 
+  .c-item{display:flex;align-items:center;gap:10px;border:1px solid #ddd;border-radius:6px;padding:6px 8px;margin:6px 0;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);}
   .c-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#f2f2f2;border:1px solid #eee}
   .c-name{font-weight:600;color:#2c3e50}
   .c-sub{color:#666;font-size:12px}
 </style><div class="contacts">`))
-	
+
 	for _, contact := range items {
 		uname := template.HTMLEscapeString(contact.UserName)
 		nick := template.HTMLEscapeString(contact.NickName)
 		remark := template.HTMLEscapeString(contact.Remark)
 		alias := template.HTMLEscapeString(contact.Alias)
 		aurl := template.HTMLEscapeString(s.composeAvatarURL(contact.UserName))
-		
+
 		c.Writer.WriteString(`<div class="c-item">`)
 		c.Writer.WriteString(`<img class="c-avatar" src="` + aurl + `" loading="lazy" onerror="this.style.visibility='hidden'"/>`)
 		c.Writer.WriteString(`<div>`)
@@ -641,7 +641,7 @@ func (s *Service) renderContactsCSV(c *gin.Context, items []*model.Contact, form
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
-	
+
 	c.Writer.WriteString("UserName,Alias,Remark,NickName,AvatarURL\n")
 	for _, contact := range items {
 		avatarURL := s.composeAvatarURL(contact.UserName)
@@ -663,7 +663,7 @@ func (s *Service) handleAvatar(c *gin.Context) {
 	username := c.Param("username")
 	size := c.Query("size")
 	log.Debug().Str("username", username).Str("size", size).Msg("handling avatar request")
-	
+
 	avatar, err := s.db.GetAvatar(username, size)
 	if err != nil {
 		errors.Err(c, err)
@@ -673,12 +673,12 @@ func (s *Service) handleAvatar(c *gin.Context) {
 		errors.Err(c, errors.ErrAvatarNotFound)
 		return
 	}
-	
+
 	if avatar.URL != "" {
 		c.Redirect(http.StatusFound, avatar.URL)
 		return
 	}
-	
+
 	ct := avatar.ContentType
 	if ct == "" {
 		ct = "image/jpeg"
@@ -711,7 +711,7 @@ func (s *Service) handleChatRooms(c *gin.Context) {
 	if format == "" {
 		format = "json"
 	}
-	
+
 	switch format {
 	case "json":
 		c.JSON(http.StatusOK, list)
@@ -728,10 +728,10 @@ func (s *Service) renderChatRoomsCSV(c *gin.Context, items []*model.ChatRoom) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
-	
+
 	csvWriter := csv.NewWriter(c.Writer)
 	csvWriter.Write([]string{"Name", "NickName", "MemberCount"})
-	
+
 	for _, room := range items {
 		csvWriter.Write([]string{room.Name, room.NickName, fmt.Sprintf("%d", len(room.Users))})
 	}
@@ -763,7 +763,7 @@ func (s *Service) handleSessions(c *gin.Context) {
 	if format == "" {
 		format = "json"
 	}
-	
+
 	switch format {
 	case "json":
 		c.JSON(http.StatusOK, list)
@@ -780,10 +780,10 @@ func (s *Service) renderSessionsCSV(c *gin.Context, items []*model.Session) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
-	
+
 	csvWriter := csv.NewWriter(c.Writer)
 	csvWriter.Write([]string{"UserName", "NickName", "NOrder", "NTime"})
-	
+
 	for _, session := range items {
 		csvWriter.Write([]string{
 			session.UserName,
@@ -803,7 +803,7 @@ func (s *Service) handleDiary(c *gin.Context) {
 		Talker string `form:"talker"`
 		Format string `form:"format"`
 	}{}
-	
+
 	if err := c.BindQuery(&q); err != nil {
 		errors.Err(c, err)
 		return
@@ -819,7 +819,7 @@ func (s *Service) handleDiary(c *gin.Context) {
 		errors.Err(c, errors.InvalidArg("date"))
 		return
 	}
-	
+
 	start := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, parsed.Location())
 	end := start.Add(24*time.Hour - time.Nanosecond)
 
@@ -840,7 +840,7 @@ func (s *Service) handleDiary(c *gin.Context) {
 		if err != nil || len(msgs) == 0 {
 			continue
 		}
-		
+
 		hasSelf := false
 		for _, m := range msgs {
 			if m.IsSelf {
@@ -851,7 +851,7 @@ func (s *Service) handleDiary(c *gin.Context) {
 		if !hasSelf {
 			continue
 		}
-		
+
 		groups = append(groups, &grouped{Talker: sess.UserName, TalkerName: sess.NickName, Messages: msgs})
 	}
 
@@ -859,7 +859,7 @@ func (s *Service) handleDiary(c *gin.Context) {
 	if format == "" {
 		format = "json"
 	}
-	
+
 	switch format {
 	case "html":
 		s.renderDiaryHTML(c, groups, heading)
@@ -877,14 +877,14 @@ func (s *Service) renderDiaryHTML(c *gin.Context, groups []*grouped, heading str
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Writer.WriteString(`<html><head><meta charset="utf-8"><title>Diary</title><style>body{font-family:Arial,Helvetica,sans-serif;font-size:14px;}details{margin:8px 0;padding:6px 8px;border:1px solid #ddd;border-radius:6px;background:#fafafa;}summary{cursor:pointer;font-weight:600;} .msg{margin:4px 0;padding:4px 6px;border-left:3px solid #2ecc71;background:#fff;} .msg-row{display:flex;gap:8px;align-items:flex-start;} .avatar{width:28px;height:28px;border-radius:6px;object-fit:cover;background:#f2f2f2;border:1px solid #eee;flex:0 0 28px} .msg-content{flex:1;min-width:0} .meta{color:#666;font-size:12px;margin-bottom:2px;} pre{white-space:pre-wrap;word-break:break-word;margin:0;} .sender{color:#27ae60;} .time{color:#16a085;margin-left:6px;} a.media{color:#2c3e50;text-decoration:none;} a.media:hover{text-decoration:underline;}</style></head><body>`)
 	c.Writer.WriteString(fmt.Sprintf("<h2>%s</h2>", template.HTMLEscapeString(heading)))
-	
+
 	for _, g := range groups {
 		title := g.Talker
 		if g.TalkerName != "" {
 			title = fmt.Sprintf("%s (%s)", g.TalkerName, g.Talker)
 		}
 		c.Writer.WriteString("<details open><summary>" + template.HTMLEscapeString(title) + fmt.Sprintf(" - %d 条消息</summary>", len(g.Messages)))
-		
+
 		for _, m := range g.Messages {
 			m.SetContent("host", c.Request.Host)
 			senderDisplay := m.Sender
@@ -896,13 +896,13 @@ func (s *Service) renderDiaryHTML(c *gin.Context, groups []*grouped, heading str
 			} else {
 				senderDisplay = template.HTMLEscapeString(senderDisplay)
 			}
-			
+
 			aurl := template.HTMLEscapeString(s.composeAvatarURL(m.Sender) + "?size=big")
 			c.Writer.WriteString("<div class=\"msg\"><div class=\"msg-row\"><img class=\"avatar\" src=\"" + aurl + "\" loading=\"lazy\" alt=\"avatar\" onerror=\"this.style.visibility='hidden'\"/><div class=\"msg-content\"><div class=\"meta\"><span class=\"sender\">" + senderDisplay + "</span><span class=\"time\">" + m.Time.Format("2006-01-02 15:04:05") + "</span></div><pre>" + messageHTMLPlaceholder(m) + "</pre></div></div></div>")
 		}
 		c.Writer.WriteString("</details>")
 	}
-	
+
 	c.Writer.WriteString(getPreviewSnippet())
 	c.Writer.WriteString("</body></html>")
 }
@@ -913,10 +913,10 @@ func (s *Service) renderDiaryCSV(c *gin.Context, groups []*grouped) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
-	
+
 	writer := csv.NewWriter(c.Writer)
 	writer.Write([]string{"Talker", "TalkerName", "Time", "SenderName", "Sender", "Content"})
-	
+
 	for _, g := range groups {
 		for _, m := range g.Messages {
 			writer.Write([]string{m.Talker, m.TalkerName, m.Time.Format("2006-01-02 15:04:05"), m.SenderName, m.Sender, m.PlainTextContent()})
@@ -931,14 +931,14 @@ func (s *Service) renderDiaryText(c *gin.Context, groups []*grouped) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
-	
+
 	for _, g := range groups {
 		if g.TalkerName != "" {
 			c.Writer.WriteString(fmt.Sprintf("%s (%s)\n", g.TalkerName, g.Talker))
 		} else {
 			c.Writer.WriteString(g.Talker + "\n")
 		}
-		
+
 		for _, m := range g.Messages {
 			senderDisplay := m.Sender
 			if m.IsSelf {
@@ -947,7 +947,7 @@ func (s *Service) renderDiaryText(c *gin.Context, groups []*grouped) {
 			if m.SenderName != "" {
 				senderDisplay = m.SenderName + "(" + senderDisplay + ")"
 			}
-			
+
 			c.Writer.WriteString(m.Time.Format("2006-01-02 15:04:05"))
 			c.Writer.WriteString(" ")
 			c.Writer.WriteString(senderDisplay)
