@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/Eyevinn/mp4ff/avc"
 	"github.com/Eyevinn/mp4ff/bits"
 	"github.com/Eyevinn/mp4ff/hevc"
@@ -37,6 +39,7 @@ func init() {
 }
 
 func Wxam2pic(data []byte) ([]byte, string, error) {
+	log.Debug().Int("data_len", len(data)).Msg("Wxam2pic started")
 
 	if len(data) < 15 || !bytes.Equal(data[0:4], WXGF.Header) {
 		return nil, "", fmt.Errorf("invalid wxgf")
@@ -107,6 +110,7 @@ type Partition struct {
 }
 
 func findDataPartition(data []byte) (*Partitions, error) {
+	log.Debug().Msg("findDataPartition started")
 
 	headerLen := int(data[4])
 	if headerLen >= len(data) {
@@ -170,6 +174,7 @@ func findDataPartition(data []byte) (*Partitions, error) {
 }
 
 func Convert2JPG(data []byte) ([]byte, error) {
+	log.Debug().Int("data_len", len(data)).Msg("Convert2JPG started")
 	cmd := exec.Command(FFMpegPath,
 		"-i", "-",
 		"-vframes", "1",
@@ -214,6 +219,7 @@ func writeTempFile(data [][]byte) (string, error) {
 // ConvertAnime2GIF convert anime frames and mask frames to mp4
 // FIXME No longer need to write to temporary files
 func ConvertAnime2GIF(animeFrames [][]byte, maskFrames [][]byte) ([]byte, error) {
+	log.Debug().Int("anime_frames", len(animeFrames)).Int("mask_frames", len(maskFrames)).Msg("ConvertAnime2GIF started")
 	animeFilePath, err := writeTempFile(animeFrames)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write anime temp file: %w", err)
@@ -255,6 +261,7 @@ func isFFmpegAvailable() bool {
 }
 
 func Transmux2MP4(data []byte) ([]byte, error) {
+	log.Debug().Int("data_len", len(data)).Msg("Transmux2MP4 started")
 
 	vpsNALUs, spsNALUs, ppsNALUs := hevc.GetParameterSetsFromByteStream(data)
 
@@ -300,6 +307,7 @@ func Transmux2MP4(data []byte) ([]byte, error) {
 }
 
 func TransmuxAnime2MP4(animeFrames [][]byte, maskFrames [][]byte) ([]byte, error) {
+	log.Debug().Int("anime_frames", len(animeFrames)).Int("mask_frames", len(maskFrames)).Msg("TransmuxAnime2MP4 started")
 
 	if len(maskFrames) != len(animeFrames) {
 		return nil, fmt.Errorf("mask frame num (%d) not equal to anime frame num (%d)", len(maskFrames), len(animeFrames))

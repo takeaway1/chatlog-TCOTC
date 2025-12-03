@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/rs/zerolog/log"
 	"github.com/sjzar/chatlog/internal/errors"
 	"github.com/sjzar/chatlog/internal/wechat/decrypt/common"
 
@@ -74,6 +75,8 @@ func (d *V4Decryptor) Validate(page1 []byte, key []byte) bool {
 
 // Decrypt 解密数据库
 func (d *V4Decryptor) Decrypt(ctx context.Context, dbfile string, hexKey string, output io.Writer) error {
+	log.Debug().Str("dbfile", dbfile).Msg("starting windows v4 decryption")
+
 	// 解码密钥
 	key, err := hex.DecodeString(hexKey)
 	if err != nil {
@@ -88,8 +91,10 @@ func (d *V4Decryptor) Decrypt(ctx context.Context, dbfile string, hexKey string,
 
 	// 验证密钥
 	if !d.Validate(dbInfo.FirstPage, key) {
+		log.Debug().Str("dbfile", dbfile).Msg("key validation failed")
 		return errors.ErrDecryptIncorrectKey
 	}
+	log.Debug().Str("dbfile", dbfile).Msg("key validation successful")
 
 	// 计算密钥
 	encKey, macKey := d.deriveKeys(key, dbInfo.Salt)
@@ -168,6 +173,7 @@ func (d *V4Decryptor) Decrypt(ctx context.Context, dbfile string, hexKey string,
 		}
 	}
 
+	log.Debug().Str("dbfile", dbfile).Int64("pages", dbInfo.TotalPages).Msg("decryption completed successfully")
 	return nil
 }
 

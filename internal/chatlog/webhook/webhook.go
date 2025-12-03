@@ -56,6 +56,7 @@ func New(config Config) *Service {
 	}
 	s.hooks = hooks
 
+	log.Debug().Int("hooks_count", len(hooks)).Msg("webhook service initialized")
 	return s
 }
 
@@ -67,6 +68,7 @@ func (s *Service) GetHooks(ctx context.Context, db *wechatdb.DB) []*Group {
 
 	groups := make([]*Group, 0)
 	for group, items := range s.hooks {
+		log.Debug().Str("group", group).Int("items", len(items)).Msg("creating webhook group")
 		hooks := make([]Webhook, 0)
 		for _, item := range items {
 			hooks = append(hooks, NewMessageWebhook(item, db, s.config.Host))
@@ -102,6 +104,8 @@ func (g *Group) Callback(event fsnotify.Event) error {
 		return nil
 	}
 
+	log.Debug().Str("group", g.group).Str("event", event.String()).Msg("webhook group received event")
+
 	select {
 	case g.ch <- event:
 	default:
@@ -123,6 +127,7 @@ func (g *Group) loop() {
 			if g.delayMs > 0 {
 				time.Sleep(time.Duration(g.delayMs) * time.Millisecond)
 			}
+			log.Debug().Str("group", g.group).Str("event", event.String()).Msg("processing webhook event")
 			g.do(event)
 		case <-g.ctx.Done():
 			return
@@ -156,6 +161,13 @@ func NewMessageWebhook(conf *conf.WebhookItem, db *wechatdb.DB, host string) *Me
 }
 
 func (m *MessageWebhook) Do(event fsnotify.Event) {
+	log.Debug().
+		Str("talker", m.conf.Talker).
+		Str("sender", m.conf.Sender).
+		Str("keyword", m.conf.Keyword).
+		Time("last_time", m.lastTime).
+		Msg("webhook checking for new messages")
+
 	messages, err := m.db.GetMessages(m.lastTime, time.Now().Add(time.Minute*10), m.conf.Talker, m.conf.Sender, m.conf.Keyword, 0, 0)
 	if err != nil {
 		log.Error().Err(err).Msgf("get messages failed")
@@ -163,6 +175,7 @@ func (m *MessageWebhook) Do(event fsnotify.Event) {
 	}
 
 	if len(messages) == 0 {
+		log.Debug().Msg("no new messages found for webhook")
 		return
 	}
 

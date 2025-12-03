@@ -59,6 +59,7 @@ type Repository struct {
 
 // New 创建一个新的 Repository
 func New(ds datasource.DataSource, indexPath string) (*Repository, error) {
+	log.Debug().Str("indexPath", indexPath).Msg("creating new repository")
 	r := &Repository{
 		ds:                 ds,
 		indexPath:          indexPath,
@@ -96,6 +97,7 @@ func New(ds datasource.DataSource, indexPath string) (*Repository, error) {
 
 // initCache 初始化缓存
 func (r *Repository) initCache(ctx context.Context) error {
+	log.Debug().Msg("initializing cache")
 	// 初始化联系人缓存
 	if err := r.initContactCache(ctx); err != nil {
 		return err
@@ -110,6 +112,7 @@ func (r *Repository) initCache(ctx context.Context) error {
 }
 
 func (r *Repository) contactCallback(event fsnotify.Event) error {
+	log.Debug().Str("event", event.String()).Msg("contact callback triggered")
 	if !(event.Op.Has(fsnotify.Create) || event.Op.Has(fsnotify.Write) || event.Op.Has(fsnotify.Rename) || event.Op.Has(fsnotify.Remove)) {
 		return nil
 	}
@@ -130,6 +133,7 @@ func (r *Repository) contactCallback(event fsnotify.Event) error {
 }
 
 func (r *Repository) chatroomCallback(event fsnotify.Event) error {
+	log.Debug().Str("event", event.String()).Msg("chatroom callback triggered")
 	if !(event.Op.Has(fsnotify.Create) || event.Op.Has(fsnotify.Write) || event.Op.Has(fsnotify.Rename) || event.Op.Has(fsnotify.Remove)) {
 		return nil
 	}
@@ -151,6 +155,7 @@ func (r *Repository) chatroomCallback(event fsnotify.Event) error {
 
 // Close 实现 Repository 接口的 Close 方法
 func (r *Repository) Close() error {
+	log.Debug().Msg("closing repository")
 	if r.indexCancel != nil {
 		r.indexCancel()
 		r.indexCancel = nil
@@ -172,24 +177,30 @@ func (r *Repository) Close() error {
 
 // GetAvatar proxies to datasource
 func (r *Repository) GetAvatar(ctx context.Context, username string, size string) (*model.Avatar, error) {
+	log.Debug().Str("username", username).Str("size", size).Msg("GetAvatar request")
 	return r.ds.GetAvatar(ctx, username, size)
 }
 
 // Stats proxies
 func (r *Repository) GlobalMessageStats(ctx context.Context) (*model.GlobalMessageStats, error) {
+	log.Debug().Msg("GlobalMessageStats request")
 	return r.ds.GlobalMessageStats(ctx)
 }
 func (r *Repository) GroupMessageCounts(ctx context.Context) (map[string]int64, error) {
+	log.Debug().Msg("GroupMessageCounts request")
 	return r.ds.GroupMessageCounts(ctx)
 }
 func (r *Repository) MonthlyTrend(ctx context.Context, months int) ([]model.MonthlyTrend, error) {
+	log.Debug().Int("months", months).Msg("MonthlyTrend request")
 	return r.ds.MonthlyTrend(ctx, months)
 }
 func (r *Repository) Heatmap(ctx context.Context) ([24][7]int64, error) {
+	log.Debug().Msg("Heatmap request")
 	return r.ds.Heatmap(ctx)
 }
 
 func (r *Repository) GlobalTodayHourly(ctx context.Context) ([24]int64, error) {
+	log.Debug().Msg("GlobalTodayHourly request")
 	if ds, ok := r.ds.(interface {
 		GlobalTodayHourly(context.Context) ([24]int64, error)
 	}); ok {
@@ -200,9 +211,11 @@ func (r *Repository) GlobalTodayHourly(ctx context.Context) ([24]int64, error) {
 
 // IntimacyBase proxies
 func (r *Repository) IntimacyBase(ctx context.Context) (map[string]*model.IntimacyBase, error) {
+	log.Debug().Msg("IntimacyBase request")
 	return r.ds.IntimacyBase(ctx)
 }
 func (r *Repository) GroupTodayMessageCounts(ctx context.Context) (map[string]int64, error) {
+	log.Debug().Msg("GroupTodayMessageCounts request")
 	if ds, ok := r.ds.(interface {
 		GroupTodayMessageCounts(context.Context) (map[string]int64, error)
 	}); ok {
@@ -212,6 +225,7 @@ func (r *Repository) GroupTodayMessageCounts(ctx context.Context) (map[string]in
 }
 
 func (r *Repository) GroupTodayHourly(ctx context.Context) (map[string][24]int64, error) {
+	log.Debug().Msg("GroupTodayHourly request")
 	if ds, ok := r.ds.(interface {
 		GroupTodayHourly(context.Context) (map[string][24]int64, error)
 	}); ok {
@@ -221,6 +235,7 @@ func (r *Repository) GroupTodayHourly(ctx context.Context) (map[string][24]int64
 }
 
 func (r *Repository) GroupWeekMessageCount(ctx context.Context) (int64, error) {
+	log.Debug().Msg("GroupWeekMessageCount request")
 	if ds, ok := r.ds.(interface {
 		GroupWeekMessageCount(context.Context) (int64, error)
 	}); ok {
@@ -230,6 +245,7 @@ func (r *Repository) GroupWeekMessageCount(ctx context.Context) (int64, error) {
 }
 
 func (r *Repository) GroupMessageTypeStats(ctx context.Context) (map[string]int64, error) {
+	log.Debug().Msg("GroupMessageTypeStats request")
 	if ds, ok := r.ds.(interface {
 		GroupMessageTypeStats(context.Context) (map[string]int64, error)
 	}); ok {

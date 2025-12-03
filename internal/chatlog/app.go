@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/sjzar/chatlog/internal/chatlog/conf"
 	"github.com/sjzar/chatlog/internal/chatlog/ctx"
 	"github.com/sjzar/chatlog/internal/ui/footer"
@@ -92,6 +93,7 @@ func NewApp(ctx *ctx.Context, m *Manager) *App {
 }
 
 func (a *App) Run() error {
+	log.Debug().Msg("App Run started")
 
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
@@ -123,6 +125,7 @@ func (a *App) Run() error {
 }
 
 func (a *App) Stop() {
+	log.Debug().Msg("App Stop called")
 	// 添加一个通道用于停止刷新 goroutine
 	if a.stopRefresh != nil {
 		close(a.stopRefresh)
@@ -189,6 +192,7 @@ func (a *App) focusSettingsTab() {
 }
 
 func (a *App) refresh() {
+	log.Debug().Msg("App refresh called")
 	tick := time.NewTicker(RefreshInterval)
 	defer tick.Stop()
 

@@ -196,6 +196,8 @@ func (s *Service) handleMCPContact(ctx context.Context, request mcp.CallToolRequ
 		return errors.ErrMCPTool(err), nil
 	}
 
+	log.Debug().Interface("req", req).Msg("handleMCPContact")
+
 	list, err := s.db.GetContacts(req.Keyword, req.Limit, req.Offset)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get contacts")
@@ -231,6 +233,8 @@ func (s *Service) handleMCPChatRoom(ctx context.Context, request mcp.CallToolReq
 		return errors.ErrMCPTool(err), nil
 	}
 
+	log.Debug().Interface("req", req).Msg("handleMCPChatRoom")
+
 	list, err := s.db.GetChatRooms(req.Keyword, req.Limit, req.Offset)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get chat rooms")
@@ -265,6 +269,8 @@ func (s *Service) handleMCPRecentChat(ctx context.Context, request mcp.CallToolR
 		log.Error().Interface("request", request.GetRawArguments()).Msg("Failed to bind arguments")
 		return errors.ErrMCPTool(err), nil
 	}
+
+	log.Debug().Interface("req", req).Msg("handleMCPRecentChat")
 
 	data, err := s.db.GetSessions(req.Keyword, req.Limit, req.Offset)
 	if err != nil {
@@ -304,6 +310,8 @@ func (s *Service) handleMCPChatLog(ctx context.Context, request mcp.CallToolRequ
 		log.Error().Interface("request", request.GetRawArguments()).Msg("Failed to bind arguments")
 		return errors.ErrMCPTool(err), nil
 	}
+
+	log.Debug().Interface("req", req).Msg("handleMCPChatLog")
 
 	var err error
 	start, end, ok := util.TimeRangeOf(req.Time)
@@ -364,6 +372,8 @@ type DiaryRequest struct {
 func (s *Service) handleMCPDiary(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	var req DiaryRequest
 	_ = request.BindArguments(&req) // 可选参数，忽略绑定错误
+
+	log.Debug().Interface("req", req).Msg("handleMCPDiary")
 
 	hours := 24
 	if strings.TrimSpace(req.Hours) != "" {

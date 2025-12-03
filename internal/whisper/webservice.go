@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/sjzar/chatlog/pkg/util/silk"
 )
 
@@ -56,6 +57,8 @@ func NewWebServiceTranscriber(cfg WebServiceConfig) (*WebServiceTranscriber, err
 		cfg.OutputFormat = "json"
 	}
 
+	log.Debug().Str("base_url", baseURL).Msg("NewWebServiceTranscriber initialized")
+
 	return &WebServiceTranscriber{
 		client:  httpClient,
 		cfg:     cfg,
@@ -65,6 +68,7 @@ func NewWebServiceTranscriber(cfg WebServiceConfig) (*WebServiceTranscriber, err
 
 // TranscribePCM handles PCM16 input.
 func (t *WebServiceTranscriber) TranscribePCM(ctx context.Context, samples []float32, sampleRate int, opts Options) (*Result, error) {
+	log.Debug().Int("samples", len(samples)).Int("rate", sampleRate).Msg("TranscribePCM started")
 	merged := t.mergeOptions(opts)
 
 	if len(samples) == 0 {
@@ -86,6 +90,7 @@ func (t *WebServiceTranscriber) TranscribePCM(ctx context.Context, samples []flo
 
 // TranscribeSilk handles SILK input by converting it into PCM before forwarding to PCM handler.
 func (t *WebServiceTranscriber) TranscribeSilk(ctx context.Context, silkData []byte, opts Options) (*Result, error) {
+	log.Debug().Int("bytes", len(silkData)).Msg("TranscribeSilk started")
 	merged := t.mergeOptions(opts)
 
 	if len(silkData) == 0 {
@@ -115,6 +120,8 @@ func (t *WebServiceTranscriber) transcribeWAV(ctx context.Context, wav []byte, f
 	if err != nil {
 		return nil, err
 	}
+
+	log.Debug().Str("url", requestURL).Msg("transcribeWAV sending request")
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -160,6 +167,7 @@ func (t *WebServiceTranscriber) transcribeWAV(ctx context.Context, wav []byte, f
 
 	resp, err := t.client.Do(req)
 	if err != nil {
+		log.Debug().Err(err).Msg("transcribeWAV request failed")
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -221,6 +229,7 @@ func (t *WebServiceTranscriber) transcribeWAV(ctx context.Context, wav []byte, f
 
 	result.Text = strings.TrimSpace(result.Text)
 
+	log.Debug().Int("text_len", len(result.Text)).Dur("duration", result.Duration).Msg("transcribeWAV completed")
 	return result, nil
 }
 

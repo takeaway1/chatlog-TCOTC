@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/sjzar/chatlog/internal/errors"
 )
 
@@ -33,6 +34,7 @@ type MemRegion struct {
 }
 
 func GetVmmap(pid uint32) ([]MemRegion, error) {
+	log.Debug().Uint32("pid", pid).Msg("GetVmmap executing vmmap command")
 	// Execute vmmap command
 	cmd := exec.Command(CommandVmmap, "-wide", fmt.Sprintf("%d", pid))
 	output, err := cmd.CombinedOutput()
@@ -45,6 +47,7 @@ func GetVmmap(pid uint32) ([]MemRegion, error) {
 }
 
 func LoadVmmap(output string) ([]MemRegion, error) {
+	log.Debug().Int("output_len", len(output)).Msg("LoadVmmap parsing output")
 	var regions []MemRegion
 
 	scanner := bufio.NewScanner(strings.NewReader(output))
@@ -62,6 +65,7 @@ func LoadVmmap(output string) ([]MemRegion, error) {
 	}
 
 	if !foundHeader {
+		log.Debug().Msg("LoadVmmap header not found")
 		return nil, nil // No vmmap data found
 	}
 
@@ -106,6 +110,7 @@ func LoadVmmap(output string) ([]MemRegion, error) {
 		}
 	}
 
+	log.Debug().Int("regions_count", len(regions)).Msg("LoadVmmap parsing completed")
 	return regions, nil
 }
 
@@ -129,6 +134,8 @@ func MemRegionsFilter(regions []MemRegion) []MemRegion {
 		targetRegionType = FilterRegionType2 // Use MALLOC_SMALL for Darwin 25.x
 	}
 
+	log.Debug().Str("darwin_version", version).Str("target_type", targetRegionType).Int("input_regions", len(regions)).Msg("MemRegionsFilter started")
+
 	for _, region := range regions {
 		if region.Empty {
 			continue
@@ -137,6 +144,7 @@ func MemRegionsFilter(regions []MemRegion) []MemRegion {
 			filteredRegions = append(filteredRegions, region)
 		}
 	}
+	log.Debug().Int("filtered_regions", len(filteredRegions)).Msg("MemRegionsFilter completed")
 	return filteredRegions
 }
 

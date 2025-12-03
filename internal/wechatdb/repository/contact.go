@@ -13,6 +13,7 @@ import (
 
 // initContactCache 初始化联系人缓存
 func (r *Repository) initContactCache(ctx context.Context) error {
+	log.Debug().Msg("initContactCache")
 
 	contactMap := make(map[string]*model.Contact)
 	aliasMap := make(map[string][]*model.Contact)
@@ -97,6 +98,7 @@ func (r *Repository) initContactCache(ctx context.Context) error {
 }
 
 func (r *Repository) GetContact(ctx context.Context, key string) (*model.Contact, error) {
+	log.Debug().Str("key", key).Msg("GetContact request")
 	r.cacheMu.RLock()
 	defer r.cacheMu.RUnlock()
 
@@ -109,6 +111,7 @@ func (r *Repository) GetContact(ctx context.Context, key string) (*model.Contact
 }
 
 func (r *Repository) GetContacts(ctx context.Context, key string, limit, offset int) ([]*model.Contact, error) {
+	log.Debug().Str("key", key).Int("limit", limit).Int("offset", offset).Msg("GetContacts request")
 	r.cacheMu.RLock()
 	defer r.cacheMu.RUnlock()
 
@@ -248,6 +251,7 @@ func (r *Repository) findContacts(key string) []*model.Contact {
 
 // getFullContact 获取联系人信息，包括群聊成员
 func (r *Repository) getFullContact(userName string) *model.Contact {
+	log.Debug().Str("userName", userName).Msg("getFullContact request")
 	r.cacheMu.RLock()
 	defer r.cacheMu.RUnlock()
 	return r.findFullContact(userName)

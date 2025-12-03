@@ -39,6 +39,8 @@ func NewFileGroup(id, rootDir, pattern string, blacklist []string) (*FileGroup, 
 	// Normalize root directory path
 	rootDir = filepath.Clean(rootDir)
 
+	log.Debug().Str("id", id).Str("root", rootDir).Str("pattern", pattern).Msg("NewFileGroup created")
+
 	return &FileGroup{
 		ID:         id,
 		RootDir:    rootDir,
@@ -54,6 +56,7 @@ func (fg *FileGroup) AddCallback(callback FileChangeCallback) {
 	fg.mutex.Lock()
 	defer fg.mutex.Unlock()
 
+	log.Debug().Str("group_id", fg.ID).Msg("AddCallback to file group")
 	fg.Callbacks = append(fg.Callbacks, callback)
 }
 
@@ -66,6 +69,7 @@ func (fg *FileGroup) RemoveCallback(callbackToRemove FileChangeCallback) bool {
 		// Compare function addresses
 		if fmt.Sprintf("%p", callback) == fmt.Sprintf("%p", callbackToRemove) {
 			// Remove the callback
+			log.Debug().Str("group_id", fg.ID).Msg("RemoveCallback from file group")
 			fg.Callbacks = append(fg.Callbacks[:i], fg.Callbacks[i+1:]...)
 			return true
 		}
@@ -104,6 +108,7 @@ func (fg *FileGroup) Match(path string) bool {
 
 // List returns a list of files in the group (real-time scan)
 func (fg *FileGroup) List() ([]string, error) {
+	log.Debug().Str("group_id", fg.ID).Msg("Listing files in group")
 	files := []string{}
 
 	// Scan directory for matching files using fs.WalkDir
@@ -160,6 +165,8 @@ func (fg *FileGroup) HandleEvent(event fsnotify.Event) {
 	if !fg.Match(event.Name) {
 		return
 	}
+
+	log.Debug().Str("group_id", fg.ID).Str("event", event.String()).Msg("HandleEvent matched file")
 
 	// Get callbacks under read lock
 	fg.mutex.RLock()

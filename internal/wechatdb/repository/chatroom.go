@@ -13,6 +13,7 @@ import (
 
 // initChatRoomCache 初始化群聊缓存
 func (r *Repository) initChatRoomCache(ctx context.Context) error {
+	log.Debug().Msg("initChatRoomCache")
 
 	chatRoomMap := make(map[string]*model.ChatRoom)
 	remarkToChatRoom := make(map[string][]*model.ChatRoom)
@@ -104,6 +105,7 @@ func (r *Repository) initChatRoomCache(ctx context.Context) error {
 }
 
 func (r *Repository) GetChatRooms(ctx context.Context, key string, limit, offset int) ([]*model.ChatRoom, error) {
+	log.Debug().Str("key", key).Int("limit", limit).Int("offset", offset).Msg("GetChatRooms request")
 	r.cacheMu.RLock()
 	defer r.cacheMu.RUnlock()
 
@@ -145,6 +147,7 @@ func (r *Repository) GetChatRooms(ctx context.Context, key string, limit, offset
 }
 
 func (r *Repository) GetChatRoom(ctx context.Context, key string) (*model.ChatRoom, error) {
+	log.Debug().Str("key", key).Msg("GetChatRoom request")
 	r.cacheMu.RLock()
 	defer r.cacheMu.RUnlock()
 
