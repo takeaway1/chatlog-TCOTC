@@ -16,21 +16,58 @@ import (
 	"github.com/sjzar/chatlog/internal/wechatdb/repository"
 )
 
+// Config holds configuration for creating a DB instance
+type Config struct {
+	// UseVFS enables direct reading of encrypted databases using VFS
+	UseVFS bool
+	// DataKey is the hex-encoded decryption key (required when UseVFS is true)
+	DataKey string
+}
+
+// Option is a functional option for creating a DB instance
+type Option func(*Config)
+
+// WithVFS enables VFS mode for direct encrypted database reading
+func WithVFS(dataKey string) Option {
+	return func(c *Config) {
+		if dataKey != "" {
+			c.UseVFS = true
+			c.DataKey = dataKey
+		}
+	}
+}
+
 type DB struct {
 	path     string
 	platform string
 	version  int
 	ds       datasource.DataSource
 	repo     *repository.Repository
+
+	// VFS configuration
+	useVFS  bool
+	dataKey string
 }
 
-func New(path string, platform string, version int) (*DB, error) {
+func New(path string, platform string, version int, opts ...Option) (*DB, error) {
 	log.Debug().Str("path", path).Str("platform", platform).Int("version", version).Msg("creating new wechatdb instance")
+
+	// Apply options
+	cfg := &Config{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
 
 	w := &DB{
 		path:     path,
 		platform: platform,
 		version:  version,
+		useVFS:   cfg.UseVFS,
+		dataKey:  cfg.DataKey,
+	}
+
+	if cfg.UseVFS {
+		log.Info().Msg("wechatdb: VFS mode enabled for direct encrypted database reading")
 	}
 
 	// 初始化，加载数据库文件信息
@@ -51,7 +88,14 @@ func (w *DB) Close() error {
 func (w *DB) Initialize() error {
 	log.Debug().Msg("initializing wechatdb")
 	var err error
-	w.ds, err = datasource.New(w.path, w.platform, w.version)
+
+	// Create datasource with VFS option if enabled
+	var dsOpts []datasource.Option
+	if w.useVFS {
+		dsOpts = append(dsOpts, datasource.WithVFS(w.dataKey))
+	}
+
+	w.ds, err = datasource.New(w.path, w.platform, w.version, dsOpts...)
 	if err != nil {
 		log.Debug().Err(err).Msg("failed to create datasource")
 		return err

@@ -89,16 +89,36 @@ type DataSource struct {
 	talkerCacheMu     sync.RWMutex
 	talkerCache       []string
 	talkerCacheExpiry time.Time
+
+	// Options for DBManager
+	dbmOpts []dbm.Option
+}
+
+// Option is a functional option for DataSource
+type Option func(*DataSource)
+
+// WithVFS enables VFS mode for direct encrypted database reading
+func WithVFS(dataKey string, platform string, version int) Option {
+	return func(ds *DataSource) {
+		ds.dbmOpts = append(ds.dbmOpts, dbm.WithVFS(dataKey, platform, version))
+	}
 }
 
 // New 创建一个新的 WindowsV3DataSource
-func New(path string) (*DataSource, error) {
+func New(path string, opts ...Option) (*DataSource, error) {
 	ds := &DataSource{
 		path:          path,
-		dbm:           dbm.NewDBManager(path),
 		messageInfos:  make([]MessageDBInfo, 0),
 		messageStores: make([]*msgstore.Store, 0),
 	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(ds)
+	}
+
+	// Create DBManager with options
+	ds.dbm = dbm.NewDBManager(path, ds.dbmOpts...)
 
 	for _, g := range Groups {
 		ds.dbm.AddGroup(g)
@@ -337,10 +357,10 @@ func (ds *DataSource) GetMessages(ctx context.Context, startTime, endTime time.T
 			}
 
 			query := fmt.Sprintf(`
-				SELECT MsgSvrID, Sequence, CreateTime, StrTalker, IsSender, 
+				SELECT MsgSvrID, Sequence, CreateTime, StrTalker, IsSender,
 					Type, SubType, StrContent, CompressContent, BytesExtra
-				FROM MSG 
-				WHERE %s 
+				FROM MSG
+				WHERE %s
 				ORDER BY Sequence ASC
 			`, strings.Join(conditions, " AND "))
 
@@ -752,7 +772,7 @@ func (ds *DataSource) GetContacts(ctx context.Context, key string, limit, offset
 
 	if key != "" {
 		// 按照关键字查询
-		query = `SELECT UserName, Alias, Remark, NickName, Reserved1 FROM Contact 
+		query = `SELECT UserName, Alias, Remark, NickName, Reserved1 FROM Contact
                 WHERE UserName = ? OR Alias = ? OR Remark = ? OR NickName = ?`
 		args = []interface{}{key, key, key, key}
 	} else {
@@ -936,15 +956,15 @@ func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset
 
 	if key != "" {
 		// 按照关键字查询
-		query = `SELECT strUsrName, nOrder, strNickName, strContent, nTime 
-                FROM Session 
+		query = `SELECT strUsrName, nOrder, strNickName, strContent, nTime
+                FROM Session
                 WHERE strUsrName = ? OR strNickName = ?
                 ORDER BY nOrder DESC`
 		args = []interface{}{key, key}
 	} else {
 		// 查询所有会话
-		query = `SELECT strUsrName, nOrder, strNickName, strContent, nTime 
-                FROM Session 
+		query = `SELECT strUsrName, nOrder, strNickName, strContent, nTime
+                FROM Session
                 ORDER BY nOrder DESC`
 	}
 
@@ -1028,18 +1048,18 @@ func (ds *DataSource) GetMedia(ctx context.Context, _type string, key string) (*
 	}
 
 	query := fmt.Sprintf(`
-        SELECT 
+        SELECT
             a.FileName,
             a.ModifyTime,
             IFNULL(d1.Dir,"") AS Dir1,
             IFNULL(d2.Dir,"") AS Dir2
-        FROM 
+        FROM
             %s a
-        LEFT JOIN 
+        LEFT JOIN
             %s d1 ON a.DirID1 = d1.DirId
-        LEFT JOIN 
+        LEFT JOIN
             %s d2 ON a.DirID2 = d2.DirId
-        WHERE 
+        WHERE
             a.Md5 = ?
     `, table1, table2, table2)
 	args := []interface{}{md5key}
@@ -1082,7 +1102,7 @@ func (ds *DataSource) GetVoice(ctx context.Context, key string) (*model.Media, e
 	query := `
 	SELECT Buf
 	FROM Media
-	WHERE Reserved0 = ? 
+	WHERE Reserved0 = ?
 	`
 	args := []interface{}{key}
 
@@ -1161,7 +1181,7 @@ func (ds *DataSource) GlobalMessageStats(ctx context.Context) (*model.GlobalMess
 	}
 	for _, db := range dbs {
 		// total/sent/recv/min/max
-		row := db.QueryRowContext(ctx, `SELECT 
+		row := db.QueryRowContext(ctx, `SELECT
 			COUNT(*) AS total,
 			SUM(CASE WHEN IsSender=1 THEN 1 ELSE 0 END) AS sent,
 			SUM(CASE WHEN IsSender=0 THEN 1 ELSE 0 END) AS recv,

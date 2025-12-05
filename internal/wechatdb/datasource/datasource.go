@@ -68,15 +68,54 @@ type DataSource interface {
 	Close() error
 }
 
-func New(path string, platform string, version int) (DataSource, error) {
+// Config holds configuration for creating a DataSource
+type Config struct {
+	// UseVFS enables direct reading of encrypted databases using VFS
+	UseVFS bool
+	// DataKey is the hex-encoded decryption key (required when UseVFS is true)
+	DataKey string
+}
+
+// Option is a functional option for creating a DataSource
+type Option func(*Config)
+
+// WithVFS enables VFS mode for direct encrypted database reading
+func WithVFS(dataKey string) Option {
+	return func(c *Config) {
+		if dataKey != "" {
+			c.UseVFS = true
+			c.DataKey = dataKey
+		}
+	}
+}
+
+func New(path string, platform string, version int, opts ...Option) (DataSource, error) {
+	// Apply options
+	cfg := &Config{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
 	switch {
 	case platform == "windows" && version == 3:
+		if cfg.UseVFS {
+			return windowsv3.New(path, windowsv3.WithVFS(cfg.DataKey, platform, version))
+		}
 		return windowsv3.New(path)
 	case platform == "windows" && version == 4:
+		if cfg.UseVFS {
+			return v4.New(path, v4.WithVFS(cfg.DataKey, platform, version))
+		}
 		return v4.New(path)
 	case platform == "darwin" && version == 3:
+		if cfg.UseVFS {
+			return darwinv3.New(path, darwinv3.WithVFS(cfg.DataKey, platform, version))
+		}
 		return darwinv3.New(path)
 	case platform == "darwin" && version == 4:
+		if cfg.UseVFS {
+			return v4.New(path, v4.WithVFS(cfg.DataKey, platform, version))
+		}
 		return v4.New(path)
 	default:
 		return nil, errors.PlatformUnsupported(platform, version)

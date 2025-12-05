@@ -70,17 +70,37 @@ type DataSource struct {
 	messageStores      []*msgstore.Store
 	messageStoreByPath map[string]*msgstore.Store
 	messageStoreMu     sync.RWMutex
+
+	// Options for DBManager
+	dbmOpts []dbm.Option
 }
 
-func New(path string) (*DataSource, error) {
+// Option is a functional option for DataSource
+type Option func(*DataSource)
+
+// WithVFS enables VFS mode for direct encrypted database reading
+func WithVFS(dataKey string, platform string, version int) Option {
+	return func(ds *DataSource) {
+		ds.dbmOpts = append(ds.dbmOpts, dbm.WithVFS(dataKey, platform, version))
+	}
+}
+
+func New(path string, opts ...Option) (*DataSource, error) {
 	ds := &DataSource{
 		path:               path,
-		dbm:                dbm.NewDBManager(path),
 		talkerDBMap:        make(map[string]string),
 		user2DisplayName:   make(map[string]string),
 		messageStores:      make([]*msgstore.Store, 0),
 		messageStoreByPath: make(map[string]*msgstore.Store),
 	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(ds)
+	}
+
+	// Create DBManager with options
+	ds.dbm = dbm.NewDBManager(path, ds.dbmOpts...)
 
 	for _, g := range Groups {
 		ds.dbm.AddGroup(g)

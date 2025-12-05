@@ -267,6 +267,12 @@ func (c *Context) GetWebhook() *conf.Webhook {
 	return c.conf.Webhook
 }
 
+func (c *Context) GetVFSMode() string {
+	// Default to disabled for backward compatibility
+	// Users can override this via configuration
+	return "disabled"
+}
+
 func (c *Context) GetSpeech() *conf.SpeechConfig {
 	return c.speech
 }

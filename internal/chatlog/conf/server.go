@@ -15,6 +15,7 @@ type ServerConfig struct {
 	WorkDir     string        `mapstructure:"work_dir"`
 	HTTPAddr    string        `mapstructure:"http_addr"`
 	AutoDecrypt bool          `mapstructure:"auto_decrypt"`
+	VFSMode     string        `mapstructure:"vfs_mode"` // auto, enabled, disabled
 	Webhook     *Webhook      `mapstructure:"webhook"`
 	Speech      *SpeechConfig `mapstructure:"speech"`
 }
@@ -90,4 +91,11 @@ func (c *ServerConfig) IsHTTPEnabled() bool {
 
 func (c *ServerConfig) IsAutoDecrypt() bool {
 	return c.AutoDecrypt
+}
+
+func (c *ServerConfig) GetVFSMode() string {
+	if c.VFSMode == "" {
+		return "disabled" // Default to disabled for backward compatibility
+	}
+	return c.VFSMode
 }

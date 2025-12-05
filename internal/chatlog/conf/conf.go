@@ -71,7 +71,10 @@ func LoadServiceConfig(configPath string, cmdConf map[string]any) (*ServerConfig
 	}
 
 	// Load Data Dir config
-	if len(conf.DataDir) != 0 && len(conf.DataKey) == 0 {
+	// Read chatlog.json from DataDir if:
+	// 1. DataDir is set and DataKey is empty (legacy behavior), OR
+	// 2. DataDir is set and Platform/Version are not specified (for VFS mode)
+	if len(conf.DataDir) != 0 && (len(conf.DataKey) == 0 || len(conf.Platform) == 0 || conf.Version == 0) {
 		if b, err := os.ReadFile(filepath.Join(conf.DataDir, "chatlog.json")); err == nil {
 			var pconf map[string]any
 			if err := json.Unmarshal(b, &pconf); err == nil {
@@ -79,7 +82,23 @@ func LoadServiceConfig(configPath string, cmdConf map[string]any) (*ServerConfig
 					if !DataDirConfigs[key] {
 						continue
 					}
-					scm.SetConfig(key, value)
+					// Only set if not already provided via command line
+					switch key {
+					case "platform":
+						if len(conf.Platform) == 0 {
+							scm.SetConfig(key, value)
+						}
+					case "version":
+						if conf.Version == 0 {
+							scm.SetConfig(key, value)
+						}
+					case "data_key":
+						if len(conf.DataKey) == 0 {
+							scm.SetConfig(key, value)
+						}
+					default:
+						scm.SetConfig(key, value)
+					}
 				}
 			}
 		}

@@ -13,6 +13,13 @@ import (
 	"github.com/sjzar/chatlog/internal/wechatdb"
 )
 
+// VFSMode constants for database access mode
+const (
+	VFSModeAuto     = "auto"     // Automatically choose based on conditions
+	VFSModeEnabled  = "enabled"  // Force VFS mode (direct encrypted reading)
+	VFSModeDisabled = "disabled" // Force traditional copy mode
+)
+
 const (
 	StateInit = iota
 	StateDecrypting
@@ -31,9 +38,12 @@ type Service struct {
 
 type Config interface {
 	GetWorkDir() string
+	GetDataDir() string
+	GetDataKey() string
 	GetPlatform() string
 	GetVersion() int
 	GetWebhook() *conf.Webhook
+	GetVFSMode() string // Returns VFSModeAuto, VFSModeEnabled, or VFSModeDisabled
 }
 
 func NewService(conf Config) *Service {
@@ -44,7 +54,39 @@ func NewService(conf Config) *Service {
 }
 
 func (s *Service) Start() error {
-	db, err := wechatdb.New(s.conf.GetWorkDir(), s.conf.GetPlatform(), s.conf.GetVersion())
+	// Determine whether to use VFS mode
+	var opts []wechatdb.Option
+	path := s.conf.GetWorkDir()
+
+	vfsMode := s.conf.GetVFSMode()
+	dataKey := s.conf.GetDataKey()
+	dataDir := s.conf.GetDataDir()
+
+	useVFS := false
+	switch vfsMode {
+	case VFSModeEnabled:
+		// Force VFS mode if data key and data dir are available
+		if dataKey != "" && dataDir != "" {
+			useVFS = true
+			path = dataDir
+			log.Info().Msg("database: VFS mode enabled (forced)")
+		} else {
+			log.Warn().Msg("database: VFS mode requested but dataKey or dataDir missing, falling back to copy mode")
+		}
+	case VFSModeDisabled:
+		// Explicitly disabled, use copy mode
+		log.Debug().Msg("database: VFS mode disabled, using copy mode")
+	case VFSModeAuto, "":
+		// Auto mode: use VFS if we have the key and data dir, otherwise use work dir
+		// For now, default to copy mode for backward compatibility
+		log.Debug().Msg("database: VFS mode auto, using copy mode for compatibility")
+	}
+
+	if useVFS {
+		opts = append(opts, wechatdb.WithVFS(dataKey))
+	}
+
+	db, err := wechatdb.New(path, s.conf.GetPlatform(), s.conf.GetVersion(), opts...)
 	if err != nil {
 		return err
 	}

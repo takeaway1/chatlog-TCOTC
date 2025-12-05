@@ -2,6 +2,7 @@ package dbm
 
 import (
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -14,12 +15,25 @@ import (
 	"github.com/sjzar/chatlog/internal/errors"
 	"github.com/sjzar/chatlog/pkg/filecopy"
 	"github.com/sjzar/chatlog/pkg/filemonitor"
+	"github.com/sjzar/chatlog/pkg/wechatvfs"
 )
 
 // dbEntry holds a database connection along with its associated temp file path (if any).
 type dbEntry struct {
 	db       *sql.DB
 	tempPath string // The temp file path used on Windows, empty on other platforms
+}
+
+// Config holds configuration options for DBManager
+type Config struct {
+	// UseVFS enables direct reading of encrypted databases using VFS
+	UseVFS bool
+	// DataKey is the hex-encoded decryption key (required when UseVFS is true)
+	DataKey string
+	// Platform is the platform type (windows, darwin)
+	Platform string
+	// Version is the WeChat version (3, 4)
+	Version int
 }
 
 type DBManager struct {
@@ -30,11 +44,19 @@ type DBManager struct {
 	dbs     map[string]*dbEntry
 	dbPaths map[string][]string
 	mutex   sync.RWMutex
+
+	// VFS support
+	useVFS   bool
+	dataKey  string
+	platform string
+	version  int
+	vfsInit  sync.Once
+	vfsErr   error
 }
 
-func NewDBManager(path string) *DBManager {
+func NewDBManager(path string, opts ...Option) *DBManager {
 	log.Debug().Str("path", path).Msg("dbm: creating new DBManager")
-	return &DBManager{
+	d := &DBManager{
 		path:    path,
 		id:      filepath.Base(path),
 		fm:      filemonitor.NewFileMonitor(),
@@ -42,6 +64,59 @@ func NewDBManager(path string) *DBManager {
 		dbs:     make(map[string]*dbEntry),
 		dbPaths: make(map[string][]string),
 	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(d)
+	}
+
+	return d
+}
+
+// Option is a functional option for DBManager
+type Option func(*DBManager)
+
+// WithVFS enables VFS mode for direct encrypted database reading
+func WithVFS(dataKey string, platform string, version int) Option {
+	return func(d *DBManager) {
+		if dataKey != "" {
+			d.useVFS = true
+			d.dataKey = dataKey
+			d.platform = platform
+			d.version = version
+			log.Debug().Str("platform", platform).Int("version", version).Msg("dbm: VFS mode enabled")
+		}
+	}
+}
+
+// WithConfig applies a Config to the DBManager
+func WithConfig(cfg *Config) Option {
+	return func(d *DBManager) {
+		if cfg != nil && cfg.UseVFS && cfg.DataKey != "" {
+			d.useVFS = true
+			d.dataKey = cfg.DataKey
+			d.platform = cfg.Platform
+			d.version = cfg.Version
+			log.Debug().Str("platform", cfg.Platform).Int("version", cfg.Version).Msg("dbm: VFS mode enabled via config")
+		}
+	}
+}
+
+// initVFS initializes the VFS subsystem (called once)
+func (d *DBManager) initVFS() error {
+	d.vfsInit.Do(func() {
+		if !d.useVFS {
+			return
+		}
+		log.Debug().Msg("dbm: initializing VFS")
+		d.vfsErr = wechatvfs.RegisterVFS()
+		if d.vfsErr != nil {
+			log.Err(d.vfsErr).Msg("dbm: failed to register VFS")
+		} else {
+			log.Info().Msg("dbm: VFS registered successfully")
+		}
+	})
+	return d.vfsErr
 }
 
 func (d *DBManager) AddGroup(g *Group) error {
@@ -139,7 +214,7 @@ func (d *DBManager) GetDBPath(name string) ([]string, error) {
 }
 
 func (d *DBManager) OpenDB(path string) (*sql.DB, error) {
-	log.Debug().Str("path", path).Msg("dbm: OpenDB request")
+	log.Debug().Str("path", path).Bool("useVFS", d.useVFS).Msg("dbm: OpenDB request")
 	d.mutex.RLock()
 	entry, ok := d.dbs[path]
 	d.mutex.RUnlock()
@@ -148,6 +223,56 @@ func (d *DBManager) OpenDB(path string) (*sql.DB, error) {
 		return entry.db, nil
 	}
 	log.Debug().Str("path", path).Msg("dbm: cache miss for db connection, opening new")
+
+	// Choose opening method based on VFS mode
+	if d.useVFS {
+		return d.openDBWithVFS(path)
+	}
+	return d.openDBWithCopy(path)
+}
+
+// openDBWithVFS opens a database using the WeChat VFS for direct encrypted reading
+func (d *DBManager) openDBWithVFS(path string) (*sql.DB, error) {
+	// Initialize VFS on first use
+	if err := d.initVFS(); err != nil {
+		log.Err(err).Msg("dbm: VFS initialization failed, falling back to copy mode")
+		return d.openDBWithCopy(path)
+	}
+
+	// Register the key for this database path with platform and version
+	wechatvfs.RegisterKeyWithParams(path, d.dataKey, d.platform, d.version)
+
+	// Open database using VFS
+	// Format: file:路径?vfs=wechat&mode=ro
+	dsn := fmt.Sprintf("file:%s?vfs=wechat&mode=ro", path)
+	db, err := sql.Open("sqlite3", dsn)
+	if err != nil {
+		log.Err(err).Str("path", path).Msg("dbm: VFS open failed, falling back to copy mode")
+		wechatvfs.UnregisterKey(path)
+		return d.openDBWithCopy(path)
+	}
+
+	// Test the connection to verify decryption works
+	if err := db.Ping(); err != nil {
+		log.Err(err).Str("path", path).Msg("dbm: VFS connection test failed, falling back to copy mode")
+		db.Close()
+		wechatvfs.UnregisterKey(path)
+		return d.openDBWithCopy(path)
+	}
+
+	entry := &dbEntry{
+		db:       db,
+		tempPath: "", // No temp file in VFS mode
+	}
+	d.mutex.Lock()
+	d.dbs[path] = entry
+	d.mutex.Unlock()
+	log.Debug().Str("path", path).Msg("dbm: db opened successfully via VFS")
+	return db, nil
+}
+
+// openDBWithCopy opens a database using the traditional copy method
+func (d *DBManager) openDBWithCopy(path string) (*sql.DB, error) {
 	var err error
 	tempPath := path
 	if runtime.GOOS == "windows" {
@@ -163,14 +288,14 @@ func (d *DBManager) OpenDB(path string) (*sql.DB, error) {
 		log.Err(err).Msgf("连接数据库 %s 失败", path)
 		return nil, err
 	}
-	entry = &dbEntry{
+	entry := &dbEntry{
 		db:       db,
 		tempPath: tempPath,
 	}
 	d.mutex.Lock()
 	d.dbs[path] = entry
 	d.mutex.Unlock()
-	log.Debug().Str("path", path).Msg("dbm: db opened successfully")
+	log.Debug().Str("path", path).Msg("dbm: db opened successfully via copy")
 	return db, nil
 }
 
@@ -186,15 +311,17 @@ func (d *DBManager) Callback(event fsnotify.Event) error {
 	if ok {
 		log.Debug().Str("file", event.Name).Msg("dbm: closing stale db connection")
 		delete(d.dbs, event.Name)
-		go func(entry *dbEntry) {
+		go func(entry *dbEntry, path string, useVFS bool) {
 			time.Sleep(time.Second * 5)
 			entry.db.Close()
 			log.Debug().Msg("dbm: stale db connection closed")
-			// Notify filecopy that the temp file can be cleaned up
-			if entry.tempPath != "" && entry.tempPath != event.Name {
+			// Cleanup based on mode
+			if useVFS {
+				wechatvfs.UnregisterKey(path)
+			} else if entry.tempPath != "" && entry.tempPath != path {
 				filecopy.NotifyFileReleased(entry.tempPath)
 			}
-		}(entry)
+		}(entry, event.Name, d.useVFS)
 	} else {
 		log.Debug().Str("file", event.Name).Msg("dbm: no stale db connection found")
 	}
@@ -215,12 +342,19 @@ func (d *DBManager) Stop() error {
 
 func (d *DBManager) Close() error {
 	log.Debug().Msg("dbm: closing DBManager")
-	for _, entry := range d.dbs {
+	for path, entry := range d.dbs {
 		entry.db.Close()
-		// Notify filecopy that the temp file can be cleaned up
-		if entry.tempPath != "" {
+		// Cleanup based on mode
+		if d.useVFS {
+			wechatvfs.UnregisterKey(path)
+		} else if entry.tempPath != "" {
 			filecopy.NotifyFileReleased(entry.tempPath)
 		}
 	}
 	return d.fm.Stop()
+}
+
+// IsVFSMode returns whether the DBManager is using VFS mode
+func (d *DBManager) IsVFSMode() bool {
+	return d.useVFS
 }

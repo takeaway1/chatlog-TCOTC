@@ -19,6 +19,7 @@ func init() {
 	serverCmd.Flags().StringVarP(&serverImgKey, "img-key", "i", "", "img key")
 	serverCmd.Flags().StringVarP(&serverWorkDir, "work-dir", "w", "", "work dir")
 	serverCmd.Flags().BoolVarP(&serverAutoDecrypt, "auto-decrypt", "", false, "auto decrypt")
+	serverCmd.Flags().StringVarP(&serverVFSMode, "vfs-mode", "", "", "vfs mode")
 }
 
 var (
@@ -30,6 +31,7 @@ var (
 	serverPlatform    string
 	serverVer         int
 	serverAutoDecrypt bool
+	serverVFSMode     string
 )
 
 var serverCmd = &cobra.Command{
@@ -73,6 +75,9 @@ func getServerConfig() map[string]any {
 	}
 	if serverAutoDecrypt {
 		cmdConf["auto_decrypt"] = true
+	}
+	if len(serverVFSMode) != 0 {
+		cmdConf["vfs_mode"] = serverVFSMode
 	}
 	return cmdConf
 }

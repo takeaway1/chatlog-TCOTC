@@ -650,6 +650,16 @@ func (m *Manager) CommandHTTPServer(configPath string, cmdConf map[string]any) e
 		return fmt.Errorf("dataKey is required")
 	}
 
+	// VFS 模式下需要 platform 和 version
+	vfsMode := m.sc.GetVFSMode()
+	if vfsMode == "enabled" {
+		platform := m.sc.GetPlatform()
+		version := m.sc.GetVersion()
+		if len(platform) == 0 || version == 0 {
+			return fmt.Errorf("VFS mode requires --platform and --version parameters (e.g., --platform windows --version 4)")
+		}
+	}
+
 	// 如果是 4.0 版本，处理图片密钥
 	version := m.sc.GetVersion()
 	if version == 4 && len(dataDir) != 0 {
