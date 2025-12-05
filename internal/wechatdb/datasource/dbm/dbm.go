@@ -16,12 +16,18 @@ import (
 	"github.com/sjzar/chatlog/pkg/filemonitor"
 )
 
+// dbEntry holds a database connection along with its associated temp file path (if any).
+type dbEntry struct {
+	db       *sql.DB
+	tempPath string // The temp file path used on Windows, empty on other platforms
+}
+
 type DBManager struct {
 	path    string
 	id      string
 	fm      *filemonitor.FileMonitor
 	fgs     map[string]*filemonitor.FileGroup
-	dbs     map[string]*sql.DB
+	dbs     map[string]*dbEntry
 	dbPaths map[string][]string
 	mutex   sync.RWMutex
 }
@@ -33,7 +39,7 @@ func NewDBManager(path string) *DBManager {
 		id:      filepath.Base(path),
 		fm:      filemonitor.NewFileMonitor(),
 		fgs:     make(map[string]*filemonitor.FileGroup),
-		dbs:     make(map[string]*sql.DB),
+		dbs:     make(map[string]*dbEntry),
 		dbPaths: make(map[string][]string),
 	}
 }
@@ -135,11 +141,11 @@ func (d *DBManager) GetDBPath(name string) ([]string, error) {
 func (d *DBManager) OpenDB(path string) (*sql.DB, error) {
 	log.Debug().Str("path", path).Msg("dbm: OpenDB request")
 	d.mutex.RLock()
-	db, ok := d.dbs[path]
+	entry, ok := d.dbs[path]
 	d.mutex.RUnlock()
 	if ok {
 		log.Debug().Str("path", path).Msg("dbm: cache hit for db connection")
-		return db, nil
+		return entry.db, nil
 	}
 	log.Debug().Str("path", path).Msg("dbm: cache miss for db connection, opening new")
 	var err error
@@ -152,13 +158,17 @@ func (d *DBManager) OpenDB(path string) (*sql.DB, error) {
 		}
 		log.Debug().Str("original", path).Str("temp", tempPath).Msg("dbm: using temp copy")
 	}
-	db, err = sql.Open("sqlite3", tempPath)
+	db, err := sql.Open("sqlite3", tempPath)
 	if err != nil {
 		log.Err(err).Msgf("连接数据库 %s 失败", path)
 		return nil, err
 	}
+	entry = &dbEntry{
+		db:       db,
+		tempPath: tempPath,
+	}
 	d.mutex.Lock()
-	d.dbs[path] = db
+	d.dbs[path] = entry
 	d.mutex.Unlock()
 	log.Debug().Str("path", path).Msg("dbm: db opened successfully")
 	return db, nil
@@ -172,15 +182,19 @@ func (d *DBManager) Callback(event fsnotify.Event) error {
 	}
 
 	d.mutex.Lock()
-	db, ok := d.dbs[event.Name]
+	entry, ok := d.dbs[event.Name]
 	if ok {
 		log.Debug().Str("file", event.Name).Msg("dbm: closing stale db connection")
 		delete(d.dbs, event.Name)
-		go func(db *sql.DB) {
+		go func(entry *dbEntry) {
 			time.Sleep(time.Second * 5)
-			db.Close()
+			entry.db.Close()
 			log.Debug().Msg("dbm: stale db connection closed")
-		}(db)
+			// Notify filecopy that the temp file can be cleaned up
+			if entry.tempPath != "" && entry.tempPath != event.Name {
+				filecopy.NotifyFileReleased(entry.tempPath)
+			}
+		}(entry)
 	} else {
 		log.Debug().Str("file", event.Name).Msg("dbm: no stale db connection found")
 	}
@@ -201,8 +215,12 @@ func (d *DBManager) Stop() error {
 
 func (d *DBManager) Close() error {
 	log.Debug().Msg("dbm: closing DBManager")
-	for _, db := range d.dbs {
-		db.Close()
+	for _, entry := range d.dbs {
+		entry.db.Close()
+		// Notify filecopy that the temp file can be cleaned up
+		if entry.tempPath != "" {
+			filecopy.NotifyFileReleased(entry.tempPath)
+		}
 	}
 	return d.fm.Stop()
 }

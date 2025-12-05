@@ -11,6 +11,23 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// isFileInUseError checks if the error indicates the file is being used by another process.
+func isFileInUseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	// Windows error message
+	if strings.Contains(errStr, "process cannot access the file") {
+		return true
+	}
+	// Unix/Linux error (resource busy)
+	if strings.Contains(errStr, "resource busy") || strings.Contains(errStr, "text file busy") {
+		return true
+	}
+	return false
+}
+
 // periodicCleanupWorker runs in the background to clean up old files.
 func (fm *FileCopyManager) periodicCleanupWorker() {
 	defer fm.wg.Done()
@@ -31,6 +48,9 @@ func (fm *FileCopyManager) periodicCleanupWorker() {
 	for {
 		select {
 		case <-ticker.C:
+			// First process any pending deletions from previous cycles
+			fm.ProcessPendingDeletions()
+			// Then run the regular cleanup
 			fm.rebuildIndexAndCleanup()
 		case <-fm.ctx.Done():
 			return
@@ -39,8 +59,15 @@ func (fm *FileCopyManager) periodicCleanupWorker() {
 }
 
 // processDeletionInline removes a file from disk and updates the cache size.
+// If the file is in use, it adds it to the pending deletion queue.
 func (fm *FileCopyManager) processDeletionInline(path string) {
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		if isFileInUseError(err) {
+			// File is in use (e.g., by SQLite), add to pending queue
+			fm.AddPendingDeletion(path, err)
+			log.Debug().Str("path", path).Msg("File in use, added to pending deletion queue")
+			return
+		}
 		log.Warn().Err(err).Str("path", path).Msg("Failed to remove file during cleanup")
 	}
 }
@@ -84,6 +111,16 @@ func (fm *FileCopyManager) rebuildIndexAndCleanup() {
 			// Check if it's old enough to be considered orphaned
 			if now.Sub(info.ModTime()) > OrphanFileCleanupThreshold {
 				filesToDelete = append(filesToDelete, path)
+			}
+			continue
+		}
+
+		// Skip SQLite sidecar files from indexing
+		// These are managed by SQLite and should not be treated as independent cache entries
+		if strings.HasSuffix(name, "-wal") || strings.HasSuffix(name, "-shm") {
+			// Best-effort cleanup for orphaned sidecar files
+			if now.Sub(info.ModTime()) > OrphanFileCleanupThreshold {
+				_ = os.Remove(path)
 			}
 			continue
 		}
