@@ -416,6 +416,9 @@ func (m *Manager) SetHTTPAddr(text string) error {
 }
 
 func (m *Manager) GetDataKey() error {
+	if m.ctx == nil {
+		return fmt.Errorf("server mode does not support this operation")
+	}
 	if m.ctx.Current == nil {
 		return fmt.Errorf("未选择任何账号")
 	}
@@ -428,31 +431,50 @@ func (m *Manager) GetDataKey() error {
 }
 
 func (m *Manager) DecryptDBFiles() error {
-	if m.ctx.DataKey == "" {
-		if m.ctx.Current == nil {
-			return fmt.Errorf("未选择任何账号")
+	if m.ctx != nil {
+		if m.ctx.DataKey == "" {
+			if m.ctx.Current == nil {
+				return fmt.Errorf("未选择任何账号")
+			}
+			if err := m.GetDataKey(); err != nil {
+				return err
+			}
 		}
-		if err := m.GetDataKey(); err != nil {
-			return err
+		if m.ctx.WorkDir == "" {
+			m.ctx.WorkDir = util.DefaultWorkDir(m.ctx.Account)
 		}
-	}
-	if m.ctx.WorkDir == "" {
-		m.ctx.WorkDir = util.DefaultWorkDir(m.ctx.Account)
+	} else if m.sc != nil {
+		if m.sc.GetDataKey() == "" {
+			return fmt.Errorf("dataKey is required")
+		}
 	}
 
 	if err := m.wechat.DecryptDBFiles(); err != nil {
 		return err
 	}
-	m.ctx.Refresh()
-	m.ctx.UpdateConfig()
+	if m.ctx != nil {
+		m.ctx.Refresh()
+		m.ctx.UpdateConfig()
+	}
 	return nil
 }
 
 func (m *Manager) StartAutoDecrypt() error {
-	if m.ctx.DataKey == "" || m.ctx.DataDir == "" {
+	var dataKey, dataDir, workDir string
+	if m.ctx != nil {
+		dataKey = m.ctx.DataKey
+		dataDir = m.ctx.DataDir
+		workDir = m.ctx.WorkDir
+	} else if m.sc != nil {
+		dataKey = m.sc.GetDataKey()
+		dataDir = m.sc.GetDataDir()
+		workDir = m.sc.GetWorkDir()
+	}
+
+	if dataKey == "" || dataDir == "" {
 		return fmt.Errorf("请先获取密钥")
 	}
-	if m.ctx.WorkDir == "" {
+	if workDir == "" {
 		return fmt.Errorf("请先执行解密数据")
 	}
 
@@ -460,7 +482,11 @@ func (m *Manager) StartAutoDecrypt() error {
 		return err
 	}
 
-	m.ctx.SetAutoDecrypt(true)
+	if m.ctx != nil {
+		m.ctx.SetAutoDecrypt(true)
+	} else if m.sc != nil {
+		m.sc.AutoDecrypt = true
+	}
 	return nil
 }
 
@@ -469,7 +495,11 @@ func (m *Manager) StopAutoDecrypt() error {
 		return err
 	}
 
-	m.ctx.SetAutoDecrypt(false)
+	if m.ctx != nil {
+		m.ctx.SetAutoDecrypt(false)
+	} else if m.sc != nil {
+		m.sc.AutoDecrypt = false
+	}
 	return nil
 }
 
@@ -477,8 +507,12 @@ func (m *Manager) SaveSpeechConfig(cfg *conf.SpeechConfig) error {
 	if cfg == nil {
 		return fmt.Errorf("speech config is nil")
 	}
-	if err := m.ctx.SaveSpeechConfig(cfg); err != nil {
-		return err
+	if m.ctx != nil {
+		if err := m.ctx.SaveSpeechConfig(cfg); err != nil {
+			return err
+		}
+	} else if m.sc != nil {
+		m.sc.Speech = cfg
 	}
 	if m.http != nil {
 		m.http.ReloadSpeech()
